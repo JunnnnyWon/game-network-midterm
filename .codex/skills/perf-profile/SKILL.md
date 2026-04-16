@@ -1,4 +1,19 @@
 ---
+name: perf-profile
+description: "Structured performance profiling workflow. Identifies bottlenecks, measures against budgets, and generates optimization recommendations with priority rankings."
+argument-hint: "[system-name or 'full']"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Bash
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1: Determine Scope
 
@@ -8,15 +23,6 @@ Read the argument:
 - `full` → run a comprehensive profile across all systems
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 2: Load Performance Budgets
 

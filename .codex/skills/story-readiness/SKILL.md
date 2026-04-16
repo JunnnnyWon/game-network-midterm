@@ -1,4 +1,19 @@
 ---
+name: story-readiness
+description: "Validate that a story file is implementation-ready. Checks for embedded GDD requirements, ADR references, engine notes, clear acceptance criteria, and no open design questions. Produces READY / NEEDS WORK / BLOCKED verdict with specific gaps. Use when user says 'is this story ready', 'can I start on this story', 'is story X ready to implement'."
+argument-hint: "[story-file-path or 'all' or 'sprint']"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, request_user_input, spawn_agent
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Story Readiness
 
@@ -14,15 +29,6 @@ gap list for each non-ready story.
 
 ---
 
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
-
 ## Phase 0: Resolve Review Mode
 
 Resolve the review mode once at startup (store for all gate spawns this run):
@@ -37,7 +43,7 @@ See `.claude/docs/director-gates.md` for the full check pattern and mode definit
 
 ## 1. Parse Arguments
 
-**Scope:** `$ARGUMENTS[0]` (blank = ask user via AskUserQuestion)
+**Scope:** `$ARGUMENTS[0]` (blank = ask user via structured user input (or one concise question))
 
 - **Specific path** (e.g., `/story-readiness production/epics/combat/story-001-basic-attack.md`):
   validate that single story file.
@@ -47,7 +53,7 @@ See `.claude/docs/director-gates.md` for the full check pattern and mode definit
   validate every story file found.
 - **No argument**: ask the user which scope to validate.
 
-If no argument is given, use `AskUserQuestion`:
+If no argument is given, use `structured user input (or one concise question)`:
 - "What would you like to validate?"
   - Options: "A specific story file", "All stories in the current sprint",
     "All stories in production/epics/", "Stories for a specific epic"
@@ -327,7 +333,7 @@ Apply the review mode resolved in Phase 0 before spawning QL-STORY-READY:
 - `lean` → skip. Note: "QL-STORY-READY skipped — Lean mode." Proceed to close.
 - `full` → spawn as normal.
 
-Spawn `qa-lead` via Task using gate **QL-STORY-READY** (`.claude/docs/director-gates.md`).
+Spawn `qa-lead` via Codex native child agents using gate **QL-STORY-READY** (`.claude/docs/director-gates.md`).
 
 Pass the following context:
 - Story title
@@ -337,7 +343,7 @@ Pass the following context:
 
 Handle the verdict per standard rules in `director-gates.md`:
 - **ADEQUATE** → story is cleared. Proceed to close.
-- **GAPS [list]** → surface the specific gaps to the user via `AskUserQuestion`:
+- **GAPS [list]** → surface the specific gaps to the user via `structured user input (or one concise question)`:
   options: `Update story with suggested gaps` / `Accept and proceed anyway` / `Discuss further`.
 - **INADEQUATE** → surface the specific gaps; ask user whether to update the story or proceed anyway.
 

@@ -1,4 +1,19 @@
 ---
+name: test-evidence-review
+description: "Quality review of test files and manual evidence documents. Goes beyond existence checks \u2014 evaluates assertion coverage, edge case handling, naming conventions, and evidence completeness. Produces ADEQUATE/INCOMPLETE/MISSING verdict per story. Run before QA sign-off or on demand."
+argument-hint: "[story-path | sprint | system-name]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Test Evidence Review
 
@@ -15,15 +30,6 @@ A manual evidence doc that exists may lack the sign-offs required for closure.
 - As part of milestone review for Logic and Integration story quality audit
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## 1. Parse Arguments
 

@@ -1,4 +1,19 @@
 ---
+name: tech-debt
+description: "Track, categorize, and prioritize technical debt across the codebase. Scans for debt indicators, maintains a debt register, and recommends repayment scheduling."
+argument-hint: "[scan|add|prioritize|report]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1: Parse Subcommand
 
@@ -12,15 +27,6 @@ Determine the mode from the argument:
 If no subcommand is provided, output usage and stop. Verdict: **FAIL** — missing required subcommand.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 2A: Scan Mode
 

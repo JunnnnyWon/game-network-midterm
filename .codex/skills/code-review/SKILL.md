@@ -1,9 +1,9 @@
 ---
-
-## Phase 1: Load Target Files
-
-Read the target file(s) in full. Read CLAUDE.md for project coding standards.
-
+name: code-review
+description: "Performs an architectural and quality code review on a specified file or set of files. Checks for coding standard compliance, architectural pattern adherence, SOLID principles, testability, and performance concerns."
+argument-hint: "[path-to-file-or-directory]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Bash, spawn_agent
 ---
 
 ## Codex Port Status
@@ -11,9 +11,15 @@ Read the target file(s) in full. Read CLAUDE.md for project coding standards.
 This skill was migrated from the original `.claude/skills` catalog.
 
 **Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
 - Preserve workflow intent even when Codex-native implementation details differ.
+
+## Phase 1: Load Target Files
+
+Read the target file(s) in full. Read CLAUDE.md for project coding standards.
+
+---
 
 ## Phase 2: Identify Engine Specialists
 
@@ -85,7 +91,7 @@ Identify the system category (engine, gameplay, AI, networking, UI, tools) and e
 
 ## Phase 7: Specialist Reviews (Parallel)
 
-Spawn all applicable specialists simultaneously via Task — do not wait for one before starting the next.
+Spawn all applicable specialists simultaneously via Codex native child agents — do not wait for one before starting the next.
 
 ### Engine Specialists
 
@@ -100,7 +106,7 @@ Also spawn the **Primary Specialist** for any file touching engine architecture 
 
 ### QA Testability Review
 
-For Logic and Integration stories, also spawn `qa-tester` via Task in parallel with the engine specialists. Pass:
+For Logic and Integration stories, also spawn `qa-tester` via Codex native child agents in parallel with the engine specialists. Pass:
 - The implementation files being reviewed
 - The story's `## QA Test Cases` section (the pre-written test specs from qa-lead)
 - The story's `## Acceptance Criteria`

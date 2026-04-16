@@ -1,4 +1,19 @@
 ---
+name: map-systems
+description: "Decompose a game concept into individual systems, map dependencies, prioritize design order, and create the systems index."
+argument-hint: "[next | system-name] [--review full|lean|solo]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, request_user_input, TodoWrite, spawn_agent
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 When this skill is invoked:
 
@@ -20,15 +35,6 @@ See `.claude/docs/director-gates.md` for the full check pattern.
 
 ---
 
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
-
 ## Phase 1: Read Concept (Required Context)
 
 Read the game concept and any existing design work. This provides the raw material
@@ -47,7 +53,7 @@ for systems decomposition.
 
 **If the systems index already exists:**
 - Read it and present current status to the user
-- Use `AskUserQuestion` to ask:
+- Use `structured user input (or one concise question)` to ask:
   "The systems index already exists with [N] systems ([M] designed, [K] not started).
   What would you like to do?"
   - Options: "Update the index with new systems", "Design the next undesigned system",
@@ -99,7 +105,7 @@ Present the enumeration organized by category. For each system, show:
 - Brief description (1 sentence)
 - Whether it was explicit (from concept) or implicit (inferred)
 
-Then use `AskUserQuestion` to capture feedback:
+Then use `structured user input (or one concise question)` to capture feedback:
 - "Are there systems missing from this list?"
 - "Should any of these be combined or split?"
 - "Are there systems listed that this game does NOT need?"
@@ -144,7 +150,7 @@ Show the dependency map as a layered list. Highlight:
 - Any "bottleneck" systems (many others depend on them — these are high-risk)
 - Any systems with no dependents (leaf nodes — lower risk, can be designed late)
 
-Use `AskUserQuestion` to ask: "Does this dependency ordering look right? Any
+Use `structured user input (or one concise question)` to ask: "Does this dependency ordering look right? Any
 dependencies I'm missing or that should be removed?"
 
 **Review mode check** — apply before spawning TD-SYSTEM-BOUNDARY:
@@ -152,7 +158,7 @@ dependencies I'm missing or that should be removed?"
 - `lean` → skip (not a PHASE-GATE). Note: "TD-SYSTEM-BOUNDARY skipped — Lean mode." Proceed to priority assignment.
 - `full` → spawn as normal.
 
-**After dependency mapping is approved, spawn `technical-director` via Task using gate TD-SYSTEM-BOUNDARY (`.claude/docs/director-gates.md`) before proceeding to priority assignment.**
+**After dependency mapping is approved, spawn `technical-director` via Codex native child agents using gate TD-SYSTEM-BOUNDARY (`.claude/docs/director-gates.md`) before proceeding to priority assignment.**
 
 Pass: the dependency map summary, layer assignments, bottleneck systems list, any circular dependency resolutions.
 
@@ -178,7 +184,7 @@ Use these heuristics for initial assignment:
 Present the priority assignments in a table. For each tier, explain why systems
 were placed there.
 
-Use `AskUserQuestion` to ask: "Do these priority assignments match your vision?
+Use `structured user input (or one concise question)` to ask: "Do these priority assignments match your vision?
 Which systems should be higher or lower priority?"
 
 Explain reasoning in conversation: "I placed [system] in MVP because the core loop
@@ -196,7 +202,7 @@ Pure technical necessity ("X depends on Y") is insufficient alone when the syste
 - `lean` → skip (not a PHASE-GATE). Note: "PR-SCOPE skipped — Lean mode." Proceed to writing the systems index.
 - `full` → spawn as normal.
 
-**After priorities are approved, spawn `producer` via Task using gate PR-SCOPE (`.claude/docs/director-gates.md`) before writing the index.**
+**After priorities are approved, spawn `producer` via Codex native child agents using gate PR-SCOPE (`.claude/docs/director-gates.md`) before writing the index.**
 
 Pass: total system count per milestone tier, estimated implementation volume per tier (system count × average complexity), team size, stated project timeline.
 
@@ -244,7 +250,7 @@ Wait for approval. Write the file only after "yes."
 - `lean` → skip (not a PHASE-GATE). Note: "CD-SYSTEMS skipped — Lean mode." Proceed to Phase 7 next steps.
 - `full` → spawn as normal.
 
-**After the systems index is written, spawn `creative-director` via Task using gate CD-SYSTEMS (`.claude/docs/director-gates.md`).**
+**After the systems index is written, spawn `creative-director` via Codex native child agents using gate CD-SYSTEMS (`.claude/docs/director-gates.md`).**
 
 Pass: systems index path, game pillars and core fantasy (from `design/gdd/game-concept.md`), MVP priority tier system list.
 
@@ -253,7 +259,7 @@ Present the assessment. If REJECT, revise the system set with the user before GD
 ### Step 5c: Update Session State
 
 After writing, create `production/session-state/active.md` if it does not exist, then update it with:
-- Task: Systems decomposition
+- Codex native child agents: Systems decomposition
 - Status: Systems index created
 - File: design/gdd/systems-index.md
 - Next: Design individual system GDDs
@@ -278,7 +284,7 @@ This phase is entered when:
   "Would you like to start designing individual systems now? The first system in
   the design order is [name]. Or would you prefer to stop here and come back later?"
 
-Use `AskUserQuestion` for: "Start designing [system-name] now, pick a different
+Use `structured user input (or one concise question)` for: "Start designing [system-name] now, pick a different
 system, or stop here?"
 
 ### Step 6b: Hand Off to /design-system
@@ -300,7 +306,7 @@ The `/design-system` skill handles the full GDD authoring process:
 
 ### Step 6c: Loop or Stop
 
-After `/design-system` completes, use `AskUserQuestion`:
+After `/design-system` completes, use `structured user input (or one concise question)`:
 - "Continue to the next system ([next system name])?"
 - "Pick a different system?"
 - "Stop here for this session?"
@@ -311,7 +317,7 @@ If continuing, return to Step 6a.
 
 ## Phase 7: Suggest Next Steps
 
-After the systems index is created (or after designing some systems), present next actions using `AskUserQuestion`:
+After the systems index is created (or after designing some systems), present next actions using `structured user input (or one concise question)`:
 
 - "Systems index is written. What would you like to do next?"
   - [A] Start designing GDDs — run `/design-system [first-system-in-order]`
@@ -331,7 +337,7 @@ After any individual GDD is completed:
 This skill follows the collaborative design principle at every phase:
 
 1. **Question -> Options -> Decision -> Draft -> Approval** at every step
-2. **AskUserQuestion** at every decision point (Explain -> Capture pattern):
+2. **structured user input (or one concise question)** at every decision point (Explain -> Capture pattern):
    - Phase 2: "Missing systems? Combine or split?"
    - Phase 3: "Dependency ordering correct?"
    - Phase 4: "Priority assignments match your vision?"

@@ -1,4 +1,19 @@
 ---
+name: sprint-plan
+description: "Generates a new sprint plan or updates an existing one based on the current milestone, completed work, and available capacity. Pulls context from production documents and design backlogs."
+argument-hint: "[new|update|status] [--review full|lean|solo]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, spawn_agent, request_user_input
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 0: Parse Arguments
 
@@ -10,15 +25,6 @@ Extract the mode argument (`new`, `update`, or `status`) and resolve the review 
 See `.claude/docs/director-gates.md` for the full check pattern.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1: Gather Context
 
@@ -51,22 +57,22 @@ For `new`:
 - Buffer (20%): [Y days reserved for unplanned work]
 - Available: [Z days]
 
-## Tasks
+## Codex native child agentss
 
 ### Must Have (Critical Path)
-| ID | Task | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
+| ID | Codex native child agents | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
 |----|------|-------------|-----------|-------------|-------------------|
 
 ### Should Have
-| ID | Task | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
+| ID | Codex native child agents | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
 |----|------|-------------|-----------|-------------|-------------------|
 
 ### Nice to Have
-| ID | Task | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
+| ID | Codex native child agents | Agent/Owner | Est. Days | Dependencies | Acceptance Criteria |
 |----|------|-------------|-----------|-------------|-------------------|
 
 ## Carryover from Previous Sprint
-| Task | Reason | New Estimate |
+| Codex native child agents | Reason | New Estimate |
 |------|--------|-------------|
 
 ## Risks
@@ -98,19 +104,19 @@ For `status`:
 ## Progress: [X/Y tasks complete] ([Z%])
 
 ### Completed
-| Task | Completed By | Notes |
+| Codex native child agents | Completed By | Notes |
 |------|-------------|-------|
 
 ### In Progress
-| Task | Owner | % Done | Blockers |
+| Codex native child agents | Owner | % Done | Blockers |
 |------|-------|--------|----------|
 
 ### Not Started
-| Task | Owner | At Risk? | Notes |
+| Codex native child agents | Owner | At Risk? | Notes |
 |------|-------|----------|-------|
 
 ### Blocked
-| Task | Blocker | Owner of Blocker | ETA |
+| Codex native child agents | Blocker | Owner of Blocker | ETA |
 |------|---------|-----------------|-----|
 
 ## Burndown Assessment
@@ -173,7 +179,7 @@ stories that haven't changed, add new stories, remove dropped ones.
 - `lean` → skip (not a PHASE-GATE). Note: "PR-SPRINT skipped — Lean mode." Proceed to Phase 5 (QA plan gate).
 - `full` → spawn as normal.
 
-Before finalising the sprint plan, spawn `producer` via Task using gate **PR-SPRINT** (`.claude/docs/director-gates.md`).
+Before finalising the sprint plan, spawn `producer` via Codex native child agents using gate **PR-SPRINT** (`.claude/docs/director-gates.md`).
 
 Pass: proposed story list (titles, estimates, dependencies), total team capacity in hours/days, any carryover from the previous sprint, milestone constraints and deadline.
 
@@ -201,7 +207,7 @@ Use `Glob` to look for `production/qa/qa-plan-sprint-[N].md` or any file in `pro
 >
 > Run `/qa-plan sprint` now, before starting any implementation. It takes one session and produces the test case requirements each story needs."
 
-Use `AskUserQuestion`:
+Use `structured user input (or one concise question)`:
 - Prompt: "No QA plan found for this sprint. How do you want to proceed?"
 - Options:
   - `[A] Run /qa-plan sprint now — I'll do that before starting implementation (Recommended)`

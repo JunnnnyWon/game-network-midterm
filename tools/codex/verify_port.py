@@ -17,8 +17,8 @@ def main() -> int:
     codex_skills = sorted(p.parent.name for p in (ROOT / '.codex' / 'skills').glob('*/SKILL.md'))
     source_agents = sorted(p.stem for p in (ROOT / '.claude' / 'agents').glob('*.md'))
     codex_agents = sorted(p.stem for p in (ROOT / '.codex' / 'agents').glob('*.toml'))
-    source_scopes = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob('**/CLAUDE.md'))
-    codex_scopes = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob('**/AGENTS.md'))
+    source_scopes = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob('**/CLAUDE.md') if '.omx/' not in str(p.relative_to(ROOT)))
+    codex_scopes = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob('**/AGENTS.md') if '.omx/' not in str(p.relative_to(ROOT)))
 
     active_orchestration_files = list((ROOT / '.codex' / 'skills').glob('team-*/SKILL.md'))
     core_skill_files = [ROOT / '.codex' / 'skills' / s / 'SKILL.md' for s in CORE_SKILLS]

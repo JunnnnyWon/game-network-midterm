@@ -1,4 +1,19 @@
 ---
+name: content-audit
+description: "Audit GDD-specified content counts against implemented content. Identifies what's planned vs built."
+argument-hint: "[system-name | --summary | (no arg = full audit)]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 When this skill is invoked:
 
@@ -8,15 +23,6 @@ Parse the argument:
 - `--summary` → summary table only, no file write
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1 — Context Gathering
 

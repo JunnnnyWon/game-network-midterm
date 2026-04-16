@@ -1,4 +1,19 @@
 ---
+name: help
+description: "Analyzes what is done and the users query and offers advice on what to do next. Use if user says what should I do next or what do I do now or I'm stuck or I don't know what to do"
+argument-hint: "[optional: what you just finished, e.g. 'finished design-review' or 'stuck on ADRs']"
+user-invocable: true
+allowed-tools: Read, Glob, Grep
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Studio Help — What Do I Do Next?
 
@@ -9,15 +24,6 @@ tells you what comes next. It is **lightweight** — not a full audit. For a ful
 gap analysis, use `/project-stage-detect`.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Step 1: Read the Catalog
 

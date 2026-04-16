@@ -1,4 +1,19 @@
 ---
+name: onboard
+description: "Generates a contextual onboarding document for a new contributor or agent joining the project. Summarizes project state, architecture, conventions, and current priorities relevant to the specified role or area."
+argument-hint: "[role|area]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1: Load Project Context
 
@@ -7,15 +22,6 @@ Read CLAUDE.md for project overview and standards.
 Read the relevant agent definition from `.claude/agents/` if a specific role is specified.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 2: Scan Relevant Area
 
@@ -66,7 +72,7 @@ Read recent changes (git log if available) to understand current momentum.
 ## Common Pitfalls
 [Things that trip up new contributors in this area]
 
-## First Tasks
+## First Codex native child agentss
 [Suggested first tasks to get oriented and productive]
 
 1. [Read these documents first]

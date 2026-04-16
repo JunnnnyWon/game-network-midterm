@@ -1,4 +1,19 @@
 ---
+name: qa-plan
+description: "Generate a QA test plan for a sprint or feature. Reads GDDs and story files, classifies stories by test type (Logic/Integration/Visual/UI), and produces a structured test plan covering automated tests required, manual test cases, smoke test scope, and playtest sign-off requirements. Run before sprint begins or when starting a major feature."
+argument-hint: "[sprint | feature: system-name | story: path]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, request_user_input
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # QA Plan
 
@@ -16,18 +31,9 @@ plan.
 
 ---
 
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
-
 ## Phase 1: Parse Scope
 
-**Argument:** `$ARGUMENTS` (blank = ask user via AskUserQuestion)
+**Argument:** `$ARGUMENTS` (blank = ask user via structured user input (or one concise question))
 
 Determine scope from the argument:
 
@@ -39,7 +45,7 @@ Determine scope from the argument:
   to stories whose file path or title contains the system name. Also check the
   epic index file (`EPIC.md`) in that system's directory.
 - **`story: [path]`** — validate that the path exists and load that single file.
-- **No argument** — use `AskUserQuestion`:
+- **No argument** — use `structured user input (or one concise question)`:
   - "What is the scope for this QA plan?"
   - Options: "Current sprint", "Specific feature (enter system name)",
     "Specific story (enter path)", "Full epic"
@@ -256,6 +262,6 @@ Next steps:
   support. If a formula is absent from the GDD, flag it rather than guessing.
 - **Playtest requirements are advisory**: the user decides whether a playtest
   is warranted for borderline Visual/Feel stories. Flag the case; do not mandate.
-- Use `AskUserQuestion` for scope selection when no argument is provided.
+- Use `structured user input (or one concise question)` for scope selection when no argument is provided.
   Keep all other phases non-interactive — present findings, then ask once to
   approve the write.

@@ -1,4 +1,19 @@
 ---
+name: create-epics
+description: "Translate approved GDDs + architecture into epics \u2014 one epic per architectural module. Defines scope, governing ADRs, engine risk, and untraced requirements. Does NOT break into stories \u2014 run /create-stories [epic-slug] after each epic is created."
+argument-hint: "[system-name | layer: foundation|core|feature|presentation | all] [--review full|lean|solo]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, spawn_agent, request_user_input
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Create Epics
 
@@ -17,15 +32,6 @@ will have changed.
 **When to run:** After `/create-control-manifest` and `/architecture-review` pass.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## 1. Parse Arguments
 
@@ -129,7 +135,7 @@ Options: "Yes, create it", "Skip", "Pause — I need to write ADRs first"
 - `lean` → skip (not a PHASE-GATE). Note: "PR-EPIC skipped — Lean mode." Proceed to Step 5 (write epic files).
 - `full` → spawn as normal.
 
-After all epics for the current layer are defined (Step 4 completed for all in-scope systems), and before writing any files, spawn `producer` via Task using gate **PR-EPIC** (`.claude/docs/director-gates.md`).
+After all epics for the current layer are defined (Step 4 completed for all in-scope systems), and before writing any files, spawn `producer` via Codex native child agents using gate **PR-EPIC** (`.claude/docs/director-gates.md`).
 
 Pass: the full epic structure summary (all epics, their scope summaries, governing ADR counts), the layer being processed, milestone timeline and team capacity.
 

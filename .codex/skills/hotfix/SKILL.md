@@ -1,4 +1,19 @@
 ---
+name: hotfix
+description: "Emergency fix workflow that bypasses normal sprint processes with a full audit trail. Creates hotfix branch, tracks approvals, and ensures the fix is backported correctly."
+argument-hint: "[bug-id or description]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, Bash, spawn_agent
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 > **Explicit invocation only**: This skill should only run when the user explicitly requests it with `/hotfix`. Do not auto-invoke based on context matching.
 
@@ -11,15 +26,6 @@ Read the bug description or ID. Determine severity:
 - If severity is S3 or lower, recommend using the normal bug fix workflow instead and stop.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 2: Create Hotfix Record
 
@@ -81,7 +87,7 @@ Update the hotfix record with root cause, fix details, and test results.
 
 ## Phase 5: Collect Approvals
 
-Use the Task tool to request sign-off in parallel:
+Use the Codex native child agents tool to request sign-off in parallel:
 
 - `subagent_type: lead-programmer` — Review the fix for correctness and side effects
 - `subagent_type: qa-tester` — Run targeted regression tests on the affected system
@@ -93,7 +99,7 @@ All three must return APPROVE before proceeding. If any returns CONCERNS or REJE
 
 ## Phase 5b: QA Re-Entry Gate
 
-After approvals, determine the QA scope required before deploying the hotfix. Spawn `qa-lead` via Task with:
+After approvals, determine the QA scope required before deploying the hotfix. Spawn `qa-lead` via Codex native child agents with:
 - The hotfix description and affected system
 - The regression test results from Phase 5
 - A list of all systems that touch the changed files (use Grep to find callers)

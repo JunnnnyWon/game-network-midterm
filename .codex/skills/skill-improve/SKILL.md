@@ -1,10 +1,9 @@
 ---
-
-# Skill Improve
-
-Runs an improvement loop on a single skill:
-test → fix → retest → keep or revert.
-
+name: skill-improve
+description: "Improve a skill using a test-fix-retest loop. Runs static checks, proposes targeted fixes, rewrites the skill, re-tests, and keeps or reverts based on score change."
+argument-hint: "[skill-name]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Bash
 ---
 
 ## Codex Port Status
@@ -12,9 +11,16 @@ test → fix → retest → keep or revert.
 This skill was migrated from the original `.claude/skills` catalog.
 
 **Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
 - Preserve workflow intent even when Codex-native implementation details differ.
+
+# Skill Improve
+
+Runs an improvement loop on a single skill:
+test → fix → retest → keep or revert.
+
+---
 
 ## Phase 1: Parse Argument
 

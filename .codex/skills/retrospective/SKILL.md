@@ -1,9 +1,9 @@
 ---
-
-## Phase 1: Parse Arguments
-
-Determine whether this is a sprint retrospective (`sprint-N`) or a milestone retrospective (`milestone-name`).
-
+name: retrospective
+description: "Generates a sprint or milestone retrospective by analyzing completed work, velocity, blockers, and patterns. Produces actionable insights for the next iteration."
+argument-hint: "[sprint-N|milestone-name]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 ## Codex Port Status
@@ -11,9 +11,15 @@ Determine whether this is a sprint retrospective (`sprint-N`) or a milestone ret
 This skill was migrated from the original `.claude/skills` catalog.
 
 **Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
 - Preserve workflow intent even when Codex-native implementation details differ.
+
+## Phase 1: Parse Arguments
+
+Determine whether this is a sprint retrospective (`sprint-N`) or a milestone retrospective (`milestone-name`).
+
+---
 
 ## Phase 1b: Check for Existing Retrospective
 
@@ -49,7 +55,7 @@ Read the sprint or milestone plan from the appropriate location:
 > "No sprint data found for [sprint/milestone]. Run `/sprint-status` to generate
 > sprint data first, or provide the sprint details manually."
 
-Then use `AskUserQuestion` to present two options:
+Then use `structured user input (or one concise question)` to present two options:
 
 - **[A] Provide data manually** — ask the user to paste or describe the sprint
   tasks, dates, and outcomes; use that as the source of truth for the retrospective.
@@ -68,11 +74,11 @@ Read the git log for the period covered by the sprint or milestone to understand
 
 Scan for completed and incomplete tasks by comparing the plan against actual deliverables. Check for:
 
-- Tasks completed as planned
-- Tasks completed but modified from the plan
-- Tasks carried over (not completed)
-- Tasks added mid-sprint (unplanned work)
-- Tasks removed or descoped
+- Codex native child agentss completed as planned
+- Codex native child agentss completed but modified from the plan
+- Codex native child agentss carried over (not completed)
+- Codex native child agentss added mid-sprint (unplanned work)
+- Codex native child agentss removed or descoped
 
 Scan the codebase for TODO/FIXME trends:
 
@@ -99,12 +105,12 @@ Generated: [Date]
 
 | Metric | Planned | Actual | Delta |
 |--------|---------|--------|-------|
-| Tasks | [X] | [Y] | [+/- Z] |
+| Codex native child agentss | [X] | [Y] | [+/- Z] |
 | Completion Rate | -- | [Z%] | -- |
 | Story Points / Effort Days | [X] | [Y] | [+/- Z] |
 | Bugs Found | -- | [N] | -- |
 | Bugs Fixed | -- | [N] | -- |
-| Unplanned Tasks Added | -- | [N] | -- |
+| Unplanned Codex native child agentss Added | -- | [N] | -- |
 | Commits | -- | [N] | -- |
 
 ### Velocity Trend
@@ -137,7 +143,7 @@ Generated: [Date]
 
 ### Estimation Accuracy
 
-| Task | Estimated | Actual | Variance | Likely Cause |
+| Codex native child agents | Estimated | Actual | Variance | Likely Cause |
 |------|-----------|--------|----------|--------------|
 | [Most overestimated task] | [X] | [Y] | [+Z] | [Why] |
 | [Most underestimated task] | [X] | [Y] | [-Z] | [Why] |
@@ -149,9 +155,9 @@ tasks? What adjustment should we apply?]
 
 ### Carryover Analysis
 
-| Task | Original Sprint | Times Carried | Reason | Action |
+| Codex native child agents | Original Sprint | Times Carried | Reason | Action |
 |------|----------------|---------------|--------|--------|
-| [Task that was not completed] | [Sprint N-X] | [N] | [Why] | [Complete / Descope / Redesign] |
+| [Codex native child agents that was not completed] | [Sprint N-X] | [N] | [Why] | [Complete / Descope / Redesign] |
 
 ### Technical Debt Status
 - Current TODO count: [N] (previous: [N])

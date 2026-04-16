@@ -1,4 +1,19 @@
 ---
+name: smoke-check
+description: "Run the critical path smoke test gate before QA hand-off. Executes the automated test suite, verifies core functionality, and produces a PASS/FAIL report. Run after a sprint's stories are implemented and before manual QA begins. A failed smoke check means the build is not ready for QA."
+argument-hint: "[sprint | quick | --platform pc|console|mobile|all]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Bash, Write, request_user_input
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Smoke Check
 
@@ -13,15 +28,6 @@ Handing a broken build to QA wastes their time and demoralises the team.
 **Output:** `production/qa/smoke-[date].md`
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Parse Arguments
 
@@ -180,7 +186,7 @@ Tailor batches 2 and 3 to the actual systems identified from the sprint or QA
 plan. Replace bracketed placeholders with real mechanic names from the current
 sprint's stories.
 
-Use `AskUserQuestion` to batch-verify. Keep to at most 3 calls.
+Use `structured user input (or one concise question)` to batch-verify. Keep to at most 3 calls.
 
 **Batch 1 — Core stability (always run):**
 ```
@@ -415,6 +421,6 @@ agent to begin manual verification."
   gaps for `/story-done` to follow up on.
 - **`quick` argument** skips Phase 3 (coverage scan) and Phase 4 Batch 3.
   Use it for rapid re-checks after fixing a specific failure.
-- Use `AskUserQuestion` for all manual smoke check verification.
+- Use `structured user input (or one concise question)` for all manual smoke check verification.
 - **Never write the report without asking** — Phase 6 requires explicit
   approval before any file is created.

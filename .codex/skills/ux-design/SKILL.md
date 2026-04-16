@@ -1,4 +1,19 @@
 ---
+name: ux-design
+description: "Guided, section-by-section UX spec authoring for a screen, flow, or HUD. Reads game concept, player journey, and relevant GDDs to provide context-aware design guidance. Produces ux-spec.md (per screen/flow) or hud-design.md using the studio templates."
+argument-hint: "[screen/flow name] or 'hud' or 'patterns'"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, request_user_input, spawn_agent
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 When this skill is invoked:
 
@@ -13,7 +28,7 @@ Three authoring modes exist based on the argument:
 | Any other value (e.g., `main-menu`, `inventory`) | UX spec for a screen or flow | `design/ux/[argument].md` |
 | No argument | Ask the user | (see below) |
 
-**If no argument is provided**, do not fail — ask instead. Use `request_user_input`:
+**If no argument is provided**, do not fail — ask instead. Use `structured user input (or one concise question)`:
 - "What are we designing today?"
   - Options: "A specific screen or flow (I'll name it)", "The game HUD", "The interaction pattern library", "I'm not sure — help me figure it out"
 
@@ -21,15 +36,6 @@ If the user selects "I'll name it" or types a screen name, normalize it to kebab
 for the filename (e.g., "Main Menu" becomes `main-menu`).
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## 2. Gather Context (Read Phase)
 
@@ -395,7 +401,7 @@ Ask: "May I create the skeleton file at `design/ux/[filename].md`?"
 ---
 
 After writing the skeleton, update `production/session-state/active.md` with:
-- Task: Designing [screen/flow name] UX spec
+- Codex native child agents: Designing [screen/flow name] UX spec
 - Current section: Starting (skeleton created)
 - File: design/ux/[filename].md
 
@@ -411,10 +417,10 @@ Context  ->  Questions  ->  Options  ->  Decision  ->  Draft  ->  Approval  ->  
 
 1. **Context**: State what this section needs to contain and surface any relevant
    constraints from context gathered in Phase 2.
-2. **Questions**: Ask what is needed to draft this section. Use `AskUserQuestion`
+2. **Questions**: Ask what is needed to draft this section. Use `structured user input (or one concise question)`
    for constrained choices, conversational text for open-ended exploration.
 3. **Options**: Where design choices exist, present 2-4 approaches with pros/cons.
-   Explain reasoning in conversation, then use `AskUserQuestion` to capture the decision.
+   Explain reasoning in conversation, then use `structured user input (or one concise question)` to capture the decision.
 4. **Decision**: User picks an approach or provides custom direction.
 5. **Draft**: Write the section content in conversation for review. Flag provisional
    assumptions explicitly.
@@ -515,7 +521,7 @@ This is the largest and most interactive section. Work through it in sub-section
 
 **Sub-section 4 — ASCII Wireframe**:
 - Offer to generate an ASCII wireframe based on the zone layout and component list.
-- Use `AskUserQuestion`: "Want an ASCII wireframe as part of this spec?"
+- Use `structured user input (or one concise question)`: "Want an ASCII wireframe as part of this spec?"
   - Options: "Yes, include one", "No, I'll attach a separate file"
 - If yes, produce the wireframe in conversation first. Ask for feedback before
   writing it to file.
@@ -633,7 +639,7 @@ Walk through the ux-designer agent's standard checklist for this screen:
 - Screen reader considerations for any non-text elements
 - Any motion or animation that needs a reduced-motion alternative
 
-Use `AskUserQuestion` to surface any open questions on accessibility tier:
+Use `structured user input (or one concise question)` to surface any open questions on accessibility tier:
 - "Has the accessibility tier been committed to for this project?"
   - Options: "Yes, read from requirements doc", "Not yet — let's flag it as a question", "Skip accessibility section for now"
 
@@ -718,7 +724,7 @@ For each item, ask the user to categorize it:
 | **On Demand** | Player must actively request it (toggle, hold button) |
 | **Hidden** | Communicated through world/audio, never on-screen text |
 
-Use `AskUserQuestion` to step through items in groups of 3-4, not all at once.
+Use `structured user input (or one concise question)` to step through items in groups of 3-4, not all at once.
 This is the most consequential design decision in the HUD — do not rush it.
 
 **Conflict check**: If the information philosophy (Section A) says "nearly HUD-free"
@@ -870,7 +876,7 @@ When all sections are approved and written:
 ### 6a: Update Session State
 
 Update `production/session-state/active.md` with:
-- Task: [screen-name] UX spec
+- Codex native child agents: [screen-name] UX spec
 - Status: Complete (or In Review)
 - File: design/ux/[filename].md
 - Sections: All written
@@ -884,7 +890,7 @@ Before presenting options, state clearly:
 > implementation pipeline. The Pre-Production gate requires all key screen specs
 > to have a review verdict."
 
-Then use `AskUserQuestion`:
+Then use `structured user input (or one concise question)`:
 - "Run `/ux-review [filename]` now, or do something else first?"
   - Options:
     - "Run `/ux-review` now — validate this spec"
@@ -930,7 +936,7 @@ specific sub-topics, additional context or coordination may be needed:
 | Narrative/lore visible in the UI | `narrative-director` — for flavor text, item names, lore panels |
 | Accessibility tier decisions | Handled by this session — owned by ux-designer |
 
-When delegating to another agent via the Task tool:
+When delegating to another agent via the Codex native child agents tool:
 - Provide: screen name, game concept summary, the specific question needing expert input
 - The agent returns analysis to this session
 - This session presents the agent's output to the user
@@ -944,7 +950,7 @@ When delegating to another agent via the Task tool:
 This skill follows the collaborative design principle at every step:
 
 1. **Question -> Options -> Decision -> Draft -> Approval** for every section
-2. **AskUserQuestion** at every decision point (Explain -> Capture pattern):
+2. **structured user input (or one concise question)** at every decision point (Explain -> Capture pattern):
    - Phase 2: "Ready to start, or need more context?"
    - Phase 3: "May I create the skeleton?"
    - Phase 4 (each section): design questions, approach options, draft approval

@@ -1,4 +1,19 @@
 ---
+name: sprint-status
+description: "Fast sprint status check. Reads the current sprint plan, scans story files for status, and produces a concise progress snapshot with burndown assessment and emerging risks. Run at any time during a sprint for quick situational awareness. Use when user asks 'how is the sprint going', 'sprint update', 'show sprint progress'."
+argument-hint: "[sprint-number or blank for current]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Sprint Status
 
@@ -11,15 +26,6 @@ concise snapshot in under 30 lines. For detailed sprint management, use
 files, and makes at most one concrete recommendation.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## 1. Find the Sprint
 
@@ -106,10 +112,10 @@ On Track window. Record this escalation reason: "At Risk — [N] story(ies) with
 ## 4. Burndown Assessment
 
 Calculate:
-- Tasks complete (DONE or COMPLETE)
-- Tasks in progress (IN PROGRESS)
-- Tasks blocked (BLOCKED)
-- Tasks not started (NOT STARTED or MISSING)
+- Codex native child agentss complete (DONE or COMPLETE)
+- Codex native child agentss in progress (IN PROGRESS)
+- Codex native child agentss blocked (BLOCKED)
+- Codex native child agentss not started (NOT STARTED or MISSING)
 - Completion percentage: (complete / total) * 100
 
 Assess burndown by comparing completion percentage to time consumed percentage:
@@ -134,7 +140,7 @@ Keep the total output to 30 lines or fewer. Use this format:
 
 ### Progress: [complete/total] tasks ([%])
 
-| Story / Task         | Priority   | Status      | Owner   | Blocker        |
+| Story / Codex native child agents         | Priority   | Status      | Owner   | Blocker        |
 |----------------------|------------|-------------|---------|----------------|
 | [title]              | Must Have  | DONE        | [owner] |                |
 | [title]              | Must Have  | IN PROGRESS | [owner] |                |
@@ -142,7 +148,7 @@ Keep the total output to 30 lines or fewer. Use this format:
 | [title]              | Should Have| NOT STARTED | [owner] |                |
 
 ### Attention Needed
-| Story / Task         | Status      | Last Updated   | Days Stale | Note           |
+| Story / Codex native child agents         | Status      | Last Updated   | Days Stale | Note           |
 |----------------------|-------------|----------------|------------|----------------|
 | [title]              | IN PROGRESS | [date or N/A]  | [N days]   | [STALE / no timestamp — cannot check staleness / inline task — cannot check staleness] |
 

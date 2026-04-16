@@ -1,9 +1,9 @@
 ---
-
-## Phase 1: Read Standards
-
-Read the art bible or asset standards from the relevant design docs and the CLAUDE.md naming conventions.
-
+name: asset-audit
+description: "Audits game assets for compliance with naming conventions, file size budgets, format standards, and pipeline requirements. Identifies orphaned assets, missing references, and standard violations."
+argument-hint: "[category|all]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep
 ---
 
 ## Codex Port Status
@@ -11,9 +11,15 @@ Read the art bible or asset standards from the relevant design docs and the CLAU
 This skill was migrated from the original `.claude/skills` catalog.
 
 **Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
 - Preserve workflow intent even when Codex-native implementation details differ.
+
+## Phase 1: Read Standards
+
+Read the art bible or asset standards from the relevant design docs and the CLAUDE.md naming conventions.
+
+---
 
 ## Phase 2: Scan Asset Directories
 

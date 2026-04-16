@@ -1,4 +1,19 @@
 ---
+name: consistency-check
+description: "Scan all GDDs against the entity registry to detect cross-document inconsistencies: same entity with different stats, same item with different values, same formula with different variables. Grep-first approach \u2014 reads registry then targets only conflicting GDD sections rather than full document reads."
+argument-hint: "[full | since-last-review | entity:<name> | item:<name>]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, Bash
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Consistency Check
 
@@ -20,15 +35,6 @@ catches too late.
 **Output:** Conflict report + optional registry corrections
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 1: Parse Arguments and Load Registry
 

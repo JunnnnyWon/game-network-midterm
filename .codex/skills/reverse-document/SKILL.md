@@ -1,4 +1,19 @@
 ---
+name: reverse-document
+description: "Generate design or architecture documents from existing implementation. Works backwards from code/prototypes to create missing planning docs."
+argument-hint: "<type> <path> (e.g., 'design src/gameplay/combat' or 'architecture src/core')"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Edit, Bash
+---
+
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
 
 # Reverse Documentation
 
@@ -10,15 +25,6 @@ appropriate design or architecture documentation. Use this when:
 - You need to document "why" behind existing code
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Workflow
 

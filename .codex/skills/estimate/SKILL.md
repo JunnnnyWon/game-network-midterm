@@ -1,6 +1,21 @@
 ---
+name: estimate
+description: "Estimates task effort by analyzing complexity, dependencies, historical velocity, and risk factors. Produces a structured estimate with confidence levels."
+argument-hint: "[task-description]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep
+---
 
-## Phase 1: Understand the spawn_agent
+## Codex Port Status
+
+This skill was migrated from the original `.claude/skills` catalog.
+
+**Compatibility rule:**
+- Use structured user input when available; otherwise ask one concise plain-text question.
+- Replace Claude-only orchestration semantics with Codex native subagents and/or OMX workflow routing.
+- Preserve workflow intent even when Codex-native implementation details differ.
+
+## Phase 1: Understand the Codex native child agents
 
 Read the task description from the argument. If the description is too vague to estimate meaningfully, ask for clarification before proceeding.
 
@@ -9,15 +24,6 @@ Read CLAUDE.md for project context: tech stack, coding standards, architectural 
 Read relevant design documents from `design/gdd/` if the task relates to a documented feature or system.
 
 ---
-
-## Codex Port Status
-
-This skill was migrated from the original `.claude/skills` catalog.
-
-**Compatibility rule:**
-- Replace `AskUserQuestion` with `request_user_input` when available; otherwise ask one concise plain-text question.
-- Replace Claude `Task` orchestration with Codex native subagents and/or OMX workflow routing.
-- Preserve workflow intent even when Codex-native implementation details differ.
 
 ## Phase 2: Scan Affected Code
 
@@ -56,10 +62,10 @@ Identify files and modules that would need to change:
 ## Phase 4: Generate the Estimate
 
 ```markdown
-## Task Estimate: [Task Name]
+## Codex native child agents Estimate: [Codex native child agents Name]
 Generated: [Date]
 
-### Task Description
+### Codex native child agents Description
 [Restate the task clearly in 1-2 sentences]
 
 ### Complexity Assessment
