@@ -19,6 +19,9 @@ public sealed class SpikeRoom
     public List<int> ActiveBatteryIds { get; } = new();
     public Dictionary<int, DateTimeOffset> PendingRespawns { get; } = new();
     public Queue<int> RecentSpawnHistory { get; } = new();
+    public Dictionary<string, PlayerEffectState> EffectsBySessionId { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, DateTimeOffset> SlowShotReadyAtBySessionId { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, DateTimeOffset> TrapRetriggerReadyAtBySessionTrapKey { get; } = new(StringComparer.Ordinal);
     public SpikeRoomState State { get; set; }
     public DateTimeOffset StateEnteredUtc { get; set; }
     public DateTimeOffset CountdownEndsUtc { get; set; }
@@ -35,4 +38,12 @@ public enum SpikeRoomState
     Ended,
     Saving,
     ResultsReady
+}
+
+public sealed class PlayerEffectState
+{
+    public float MoveMultiplier { get; set; } = 1f;
+    public string Source { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAtUtc { get; set; } = DateTimeOffset.MinValue;
+    public DateTimeOffset ImmuneUntilUtc { get; set; } = DateTimeOffset.MinValue;
 }

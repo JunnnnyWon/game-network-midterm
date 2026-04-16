@@ -132,6 +132,8 @@ public sealed class RoomRegistry
         room.Members.Add(session);
         room.ReadyBySessionId[session.SessionId] = false;
         room.ScoreBySessionId[session.SessionId] = 0;
+        room.EffectsBySessionId[session.SessionId] = new PlayerEffectState();
+        room.SlowShotReadyAtBySessionId[session.SessionId] = DateTimeOffset.MinValue;
         session.RoomCode = room.RoomCode;
     }
 

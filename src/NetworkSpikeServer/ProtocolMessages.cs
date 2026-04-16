@@ -20,6 +20,7 @@ public sealed class ClientMessage
     public bool FirePressed { get; set; }
     public bool IsReady { get; set; }
     public int BatteryId { get; set; }
+    public int TrapId { get; set; }
 }
 
 /// <summary>
@@ -43,6 +44,7 @@ public sealed class ServerMessage
     public int[] ActiveBatteryIds { get; set; } = [];
     public string[] Scoreboard { get; set; } = [];
     public float MatchTimeRemainingSeconds { get; set; }
+    public string[] EffectStates { get; set; } = [];
 }
 
 /// <summary>

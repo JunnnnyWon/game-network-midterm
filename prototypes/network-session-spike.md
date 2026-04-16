@@ -108,6 +108,44 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 - The next slice should connect real player-position-based pickup resolution and then integrate slow-shot/trap effects into contested routing.
 
 
+## Findings — 2026-04-16 slow-shot and trap slice
+
+### Evidence captured
+- External C# spike server builds successfully after the effect-system additions.
+- Unity client scripts compile successfully via `dotnet build My project/Assembly-CSharp.csproj`.
+- Live protocol smoke proved authoritative slow-shot and trap interaction behavior on top of the scoring loop.
+
+### Observed results
+- **Slow shot applies a 35% slow to the opposing player** — PASS
+- **Trap requests are ignored while a stronger slow is active** — PASS
+- **Post-slow immunity is surfaced and blocks immediate reapplication** — PASS
+- **Trap applies after immunity expires** — PASS
+- **No score penalty is applied by slow/trap events** — PASS
+
+### Notes
+- The slice still uses spike-style direct effect requests (`fire_slow_shot`, `trigger_trap`) rather than full world-position hit/trap detection.
+- The next slice should replace debug-triggered effect application with route/position-based interaction and integrate richer HUD feedback around cooldowns and debuffs.
+
+
+## Findings — 2026-04-16 slow-shot and trap slice
+
+### Evidence captured
+- External C# spike server builds successfully after the effect-system additions.
+- Unity client scripts compile successfully via `dotnet build My project/Assembly-CSharp.csproj`.
+- Live protocol smoke proved authoritative slow-shot and trap interaction behavior on top of the scoring loop.
+
+### Observed results
+- **Slow shot applies a 35% slow to the opposing player** — PASS
+- **Trap requests are ignored while a stronger slow is active** — PASS
+- **Post-slow immunity is surfaced and blocks reapplication briefly** — PASS
+- **Trap applies after immunity expires** — PASS
+- **No score penalty is applied by slow/trap events** — PASS
+
+### Notes
+- This slice still uses spike-style direct requests (`fire_slow_shot`, `trigger_trap`) rather than full world-position hit/trap detection.
+- The next slice should convert from debug-triggered effects to route/position-driven gameplay interactions and then connect UI polish around cooldown/debuff feedback.
+
+
 ## Findings — 2026-04-16 battery/scoring slice
 
 ### Evidence captured

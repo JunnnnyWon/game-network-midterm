@@ -93,6 +93,12 @@ namespace BatteryRushArena.NetworkSpike
         public Task CollectBatteryAsync(int batteryId, CancellationToken cancellationToken = default) =>
             SendAsync(new SpikeClientMessage { Type = "collect_battery", BatteryId = batteryId }, cancellationToken);
 
+        public Task FireSlowShotAsync(CancellationToken cancellationToken = default) =>
+            SendAsync(new SpikeClientMessage { Type = "fire_slow_shot" }, cancellationToken);
+
+        public Task TriggerTrapAsync(int trapId, CancellationToken cancellationToken = default) =>
+            SendAsync(new SpikeClientMessage { Type = "trigger_trap", TrapId = trapId }, cancellationToken);
+
         public async Task MaybeSendHeartbeatAsync(CancellationToken cancellationToken = default)
         {
             if (!IsConnected)

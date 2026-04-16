@@ -147,6 +147,7 @@ namespace BatteryRushArena.NetworkSpike
             GUILayout.Label($"Members: {string.Join(", ", _lastServerMessage.Members ?? Array.Empty<string>())}");
             GUILayout.Label($"Scoreboard: {string.Join(" | ", _lastServerMessage.Scoreboard ?? Array.Empty<string>())}");
             GUILayout.Label($"Active Batteries: {string.Join(", ", _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())}");
+            GUILayout.Label($"Effects: {string.Join(" | ", _lastServerMessage.EffectStates ?? Array.Empty<string>())}");
             if (string.Equals(_lastServerMessage.RoomState, "Active", StringComparison.OrdinalIgnoreCase))
             {
                 GUILayout.BeginHorizontal();
@@ -156,6 +157,17 @@ namespace BatteryRushArena.NetworkSpike
                     {
                         _ = _client.CollectBatteryAsync(batteryId, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                     }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Fire Slow Shot") && _client != null)
+                {
+                    _ = _client.FireSlowShotAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+
+                if (GUILayout.Button("Trigger Trap Self") && _client != null)
+                {
+                    _ = _client.TriggerTrapAsync(1, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                 }
                 GUILayout.EndHorizontal();
             }
