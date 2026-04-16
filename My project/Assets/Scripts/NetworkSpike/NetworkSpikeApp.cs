@@ -21,7 +21,7 @@ namespace BatteryRushArena.NetworkSpike
         private int _tick;
         private bool _autoHeartbeat = true;
         private bool _readyRequested;
-        private Rect _window = new(20, 20, 560, 620);
+        private Rect _window = new(20, 20, 620, 680);
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
 
         private void Awake()
@@ -89,19 +89,28 @@ namespace BatteryRushArena.NetworkSpike
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Connect"))
             {
-                if (_client != null) _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                if (_client != null)
+                {
+                    _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
             }
 
             if (GUILayout.Button("Create Room"))
             {
                 _readyRequested = false;
-            if (_client != null) _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                if (_client != null)
+                {
+                    _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
             }
 
             if (GUILayout.Button("Join Room"))
             {
                 _readyRequested = false;
-            if (_client != null) _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                if (_client != null)
+                {
+                    _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
             }
             GUILayout.EndHorizontal();
 
@@ -109,15 +118,20 @@ namespace BatteryRushArena.NetworkSpike
             if (GUILayout.Button(_readyRequested ? "Unset Ready" : "Set Ready"))
             {
                 _readyRequested = !_readyRequested;
-                if (_client != null) _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                if (_client != null)
+                {
+                    _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
             }
-
             GUILayout.EndHorizontal();
 
             if (GUILayout.Button("Send Input Frame") && string.Equals(_lastServerMessage.RoomState, "Active", StringComparison.OrdinalIgnoreCase))
             {
                 _tick += 1;
-                if (_client != null) _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), Vector2.right, Mouse.current != null && Mouse.current.leftButton.isPressed, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                if (_client != null)
+                {
+                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), Vector2.right, Mouse.current != null && Mouse.current.leftButton.isPressed, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
             }
 
             _autoHeartbeat = GUILayout.Toggle(_autoHeartbeat, "Auto heartbeat when idle");
@@ -127,9 +141,25 @@ namespace BatteryRushArena.NetworkSpike
             GUILayout.Label($"Authoritative Room State: {_lastServerMessage.RoomState}");
             GUILayout.Label($"Player Count: {_lastServerMessage.PlayerCount} / Ready: {_lastServerMessage.ReadyPlayers}");
             GUILayout.Label($"Countdown Remaining: {_lastServerMessage.CountdownRemainingSeconds:F2}");
+            GUILayout.Label($"Match Time Remaining: {_lastServerMessage.MatchTimeRemainingSeconds:F2}");
             GUILayout.Label($"End Reason: {_lastServerMessage.EndReason}");
             GUILayout.Label($"Persistence Status: {_lastServerMessage.PersistenceStatus}");
             GUILayout.Label($"Members: {string.Join(", ", _lastServerMessage.Members ?? Array.Empty<string>())}");
+            GUILayout.Label($"Scoreboard: {string.Join(" | ", _lastServerMessage.Scoreboard ?? Array.Empty<string>())}");
+            GUILayout.Label($"Active Batteries: {string.Join(", ", _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())}");
+            if (string.Equals(_lastServerMessage.RoomState, "Active", StringComparison.OrdinalIgnoreCase))
+            {
+                GUILayout.BeginHorizontal();
+                foreach (var batteryId in _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())
+                {
+                    if (GUILayout.Button($"Collect B{batteryId}") && _client != null)
+                    {
+                        _ = _client.CollectBatteryAsync(batteryId, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+
             GUILayout.Space(8);
             GUILayout.Label("Logs:");
             var startIndex = Mathf.Max(0, _logs.Count - 16);

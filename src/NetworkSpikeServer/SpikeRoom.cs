@@ -15,6 +15,10 @@ public sealed class SpikeRoom
     public string RoomCode { get; }
     public List<ClientSession> Members { get; } = new();
     public Dictionary<string, bool> ReadyBySessionId { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int> ScoreBySessionId { get; } = new(StringComparer.Ordinal);
+    public List<int> ActiveBatteryIds { get; } = new();
+    public Dictionary<int, DateTimeOffset> PendingRespawns { get; } = new();
+    public Queue<int> RecentSpawnHistory { get; } = new();
     public SpikeRoomState State { get; set; }
     public DateTimeOffset StateEnteredUtc { get; set; }
     public DateTimeOffset CountdownEndsUtc { get; set; }

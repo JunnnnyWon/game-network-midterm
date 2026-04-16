@@ -26,6 +26,7 @@ namespace BatteryRushArena.NetworkSpike
         public float AimY;
         public bool FirePressed;
         public bool IsReady;
+        public int BatteryId;
     }
 
     /// <summary>
@@ -46,7 +47,10 @@ namespace BatteryRushArena.NetworkSpike
         public float CountdownRemainingSeconds;
         public string EndReason = string.Empty;
         public string PersistenceStatus = string.Empty;
-        public string[] Members = new string[0];
+        public string[] Members = Array.Empty<string>();
+        public int[] ActiveBatteryIds = Array.Empty<int>();
+        public string[] Scoreboard = Array.Empty<string>();
+        public float MatchTimeRemainingSeconds;
     }
 
     internal static class LengthPrefixedProtocol

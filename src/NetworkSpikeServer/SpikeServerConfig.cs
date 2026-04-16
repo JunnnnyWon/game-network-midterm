@@ -9,10 +9,15 @@ public sealed record SpikeServerConfig(
     string ProtocolVersion,
     TimeSpan HeartbeatInterval,
     TimeSpan StaleTimeout,
-    int MaxPlayersPerRoom)
+    int MaxPlayersPerRoom,
+    TimeSpan MatchDuration,
+    int TargetScore,
+    int ActiveBatteryCount,
+    TimeSpan BatteryRespawnDelay,
+    int SpawnPointCount)
 {
     /// <summary>
-    /// Creates the default spike configuration aligned with ADR-0001.
+    /// Creates the default spike configuration aligned with ADR-0001 and ADR-0005.
     /// </summary>
     public static SpikeServerConfig CreateDefault() => new(
         Host: "127.0.0.1",
@@ -20,5 +25,10 @@ public sealed record SpikeServerConfig(
         ProtocolVersion: "bra-spike-v1",
         HeartbeatInterval: TimeSpan.FromSeconds(2),
         StaleTimeout: TimeSpan.FromSeconds(5),
-        MaxPlayersPerRoom: 2);
+        MaxPlayersPerRoom: 2,
+        MatchDuration: TimeSpan.FromSeconds(120),
+        TargetScore: 10,
+        ActiveBatteryCount: 3,
+        BatteryRespawnDelay: TimeSpan.FromSeconds(3),
+        SpawnPointCount: 8);
 }

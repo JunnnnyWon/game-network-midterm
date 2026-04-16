@@ -87,3 +87,41 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - The current result path is still a placeholder room-state flow, not full score-based victory.
 - The next slice should connect the battery/scoring system so end-state reasons can come from actual gameplay resolution instead of debug/disconnect cases only.
+
+
+## Findings — 2026-04-16 battery/scoring slice
+
+### Evidence captured
+- External C# spike server builds successfully after the battery/scoring additions.
+- Unity project scripts compile successfully in batchmode after the scoring slice changes.
+- Live protocol smoke proved authoritative battery collection, score progression, and gameplay-driven match completion.
+
+### Observed results
+- **Active batteries are exposed to the client** — PASS
+- **Battery collection increments authoritative score** — PASS
+- **Battery respawn events occur after the configured delay** — PASS
+- **Target score ends the match with `TargetScoreReached`** — PASS
+- **The room still transitions through Saving -> ResultsReady after real scoring-based completion** — PASS
+
+### Notes
+- The scoring slice is still a spike-style implementation and uses battery ids rather than full world-position pickup validation.
+- The next slice should connect real player-position-based pickup resolution and then integrate slow-shot/trap effects into contested routing.
+
+
+## Findings — 2026-04-16 battery/scoring slice
+
+### Evidence captured
+- External C# spike server builds successfully after battery/scoring additions.
+- Unity project scripts compile successfully in batchmode after the scoring slice changes.
+- Live protocol smoke proved authoritative battery collection, score progression, and gameplay-driven match completion.
+
+### Observed results
+- **Active batteries are exposed to the client** — PASS
+- **Battery collection increments authoritative score** — PASS
+- **Battery respawn events occur after the configured delay** — PASS
+- **Target score ends the match with ** — PASS
+- **The room still transitions through Saving -> ResultsReady after real scoring-based completion** — PASS
+
+### Notes
+- The scoring slice is still a spike-style implementation and uses battery ids rather than full world-position pickup validation.
+- The next slice should connect real player-position-based pickup resolution and then integrate slow-shot/trap effects into contested routing.

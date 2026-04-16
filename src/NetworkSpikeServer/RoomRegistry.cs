@@ -131,6 +131,7 @@ public sealed class RoomRegistry
     {
         room.Members.Add(session);
         room.ReadyBySessionId[session.SessionId] = false;
+        room.ScoreBySessionId[session.SessionId] = 0;
         session.RoomCode = room.RoomCode;
     }
 

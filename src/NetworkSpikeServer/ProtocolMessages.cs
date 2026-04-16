@@ -19,6 +19,7 @@ public sealed class ClientMessage
     public float AimY { get; set; }
     public bool FirePressed { get; set; }
     public bool IsReady { get; set; }
+    public int BatteryId { get; set; }
 }
 
 /// <summary>
@@ -39,6 +40,9 @@ public sealed class ServerMessage
     public string EndReason { get; set; } = string.Empty;
     public string PersistenceStatus { get; set; } = string.Empty;
     public string[] Members { get; set; } = [];
+    public int[] ActiveBatteryIds { get; set; } = [];
+    public string[] Scoreboard { get; set; } = [];
+    public float MatchTimeRemainingSeconds { get; set; }
 }
 
 /// <summary>

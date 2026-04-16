@@ -90,6 +90,9 @@ public sealed class SpikeServerHost
                     case "input_frame":
                         await HandleInputFrameAsync(session, message, cancellationToken);
                         break;
+                    case "collect_battery":
+                        await HandleCollectBatteryAsync(session, message, cancellationToken);
+                        break;
                     default:
                         await SendErrorAsync(session, "unsupported_message_type", cancellationToken);
                         break;
@@ -315,8 +318,9 @@ public sealed class SpikeServerHost
                             {
                                 room.State = SpikeRoomState.Active;
                                 room.StateEnteredUtc = DateTimeOffset.UtcNow;
-                                room.ActiveEndsUtc = DateTimeOffset.UtcNow.AddSeconds(5);
+                                room.ActiveEndsUtc = DateTimeOffset.UtcNow.Add(_config.MatchDuration);
                                 room.EndReason = string.Empty;
+                                InitializeActiveMatch(room);
                                 shouldBroadcast = true;
                                 messageType = "room_state_changed";
                             }
@@ -328,13 +332,19 @@ public sealed class SpikeServerHost
                             }
                             break;
                         case SpikeRoomState.Active:
+                            var batteriesRespawned = ProcessBatteryRespawns(room);
                             if (DateTimeOffset.UtcNow >= room.ActiveEndsUtc)
                             {
                                 room.State = SpikeRoomState.Ended;
                                 room.StateEnteredUtc = DateTimeOffset.UtcNow;
-                                room.EndReason = string.IsNullOrWhiteSpace(room.EndReason) ? "timebox_complete" : room.EndReason;
+                                room.EndReason = string.IsNullOrWhiteSpace(room.EndReason) ? "TimeExpired" : room.EndReason;
                                 shouldBroadcast = true;
                                 messageType = "room_state_changed";
+                            }
+                            else if (batteriesRespawned)
+                            {
+                                shouldBroadcast = true;
+                                messageType = "battery_respawned";
                             }
                             break;
                         case SpikeRoomState.Ended:
@@ -371,19 +381,19 @@ public sealed class SpikeServerHost
         lock (_roomRegistry.SyncRoot)
         {
             if (room.State == SpikeRoomState.Countdown)
-        {
-            room.State = SpikeRoomState.Lobby;
-            room.StateEnteredUtc = DateTimeOffset.UtcNow;
-            room.EndReason = string.Empty;
-            return;
-        }
+            {
+                room.State = SpikeRoomState.Lobby;
+                room.StateEnteredUtc = DateTimeOffset.UtcNow;
+                room.EndReason = string.Empty;
+                return;
+            }
 
-        if (room.State == SpikeRoomState.Active && room.Members.Count == 1)
-        {
-            room.State = SpikeRoomState.Ended;
-            room.StateEnteredUtc = DateTimeOffset.UtcNow;
-            room.EndReason = "DisconnectForfeit";
-        }
+            if (room.State == SpikeRoomState.Active && room.Members.Count == 1)
+            {
+                room.State = SpikeRoomState.Ended;
+                room.StateEnteredUtc = DateTimeOffset.UtcNow;
+                room.EndReason = "DisconnectForfeit";
+            }
         }
     }
 
@@ -397,6 +407,9 @@ public sealed class SpikeServerHost
         string endReason;
         string persistenceStatus;
         string[] members;
+        int[] activeBatteryIds;
+        string[] scoreboard;
+        float matchTimeRemaining;
         ClientSession[] targets;
 
         lock (_roomRegistry.SyncRoot)
@@ -408,6 +421,9 @@ public sealed class SpikeServerHost
             countdownRemaining = room.State == SpikeRoomState.Countdown
                 ? Math.Max(0f, (float)(room.CountdownEndsUtc - DateTimeOffset.UtcNow).TotalSeconds)
                 : 0f;
+            matchTimeRemaining = room.State == SpikeRoomState.Active
+                ? Math.Max(0f, (float)(room.ActiveEndsUtc - DateTimeOffset.UtcNow).TotalSeconds)
+                : 0f;
             endReason = room.EndReason;
             persistenceStatus = room.State switch
             {
@@ -416,6 +432,10 @@ public sealed class SpikeServerHost
                 _ => string.Empty
             };
             members = room.Members.Select(member => member.PlayerName).ToArray();
+            activeBatteryIds = room.ActiveBatteryIds.ToArray();
+            scoreboard = room.Members
+                .Select(member => $"{member.PlayerName}:{room.ScoreBySessionId.GetValueOrDefault(member.SessionId, 0)}")
+                .ToArray();
             targets = room.Members.ToArray();
         }
 
@@ -435,7 +455,10 @@ public sealed class SpikeServerHost
                     CountdownRemainingSeconds = countdownRemaining,
                     EndReason = endReason,
                     PersistenceStatus = persistenceStatus,
-                    Members = members
+                    Members = members,
+                    ActiveBatteryIds = activeBatteryIds,
+                    Scoreboard = scoreboard,
+                    MatchTimeRemainingSeconds = matchTimeRemaining
                 };
                 await LengthPrefixedProtocol.WriteAsync(member.Stream, message, cancellationToken);
             }
@@ -452,4 +475,125 @@ public sealed class SpikeServerHost
             SessionId = session.SessionId,
             Error = error
         }, cancellationToken);
+
+    private async Task HandleCollectBatteryAsync(ClientSession session, ClientMessage message, CancellationToken cancellationToken)
+    {
+        var room = _roomRegistry.FindRoom(session);
+        if (room is null)
+        {
+            await SendErrorAsync(session, "not_in_room", cancellationToken);
+            return;
+        }
+
+        var batteryCollected = false;
+        lock (_roomRegistry.SyncRoot)
+        {
+            if (room.State != SpikeRoomState.Active)
+            {
+                batteryCollected = false;
+            }
+            else if (room.ActiveBatteryIds.Remove(message.BatteryId))
+            {
+                room.PendingRespawns[message.BatteryId] = DateTimeOffset.UtcNow.Add(_config.BatteryRespawnDelay);
+                room.ScoreBySessionId[session.SessionId] = room.ScoreBySessionId.GetValueOrDefault(session.SessionId, 0) + 1;
+                batteryCollected = true;
+
+                if (room.ScoreBySessionId[session.SessionId] >= _config.TargetScore)
+                {
+                    room.State = SpikeRoomState.Ended;
+                    room.StateEnteredUtc = DateTimeOffset.UtcNow;
+                    room.EndReason = "TargetScoreReached";
+                }
+            }
+        }
+
+        if (!batteryCollected)
+        {
+            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+            {
+                Type = "collect_battery_ignored",
+                SessionId = session.SessionId,
+                Error = "battery_not_available"
+            }, cancellationToken);
+            return;
+        }
+
+        await BroadcastRoomAsync(room, "battery_collected", cancellationToken);
+    }
+
+    private void InitializeActiveMatch(SpikeRoom room)
+    {
+        room.ActiveBatteryIds.Clear();
+        room.PendingRespawns.Clear();
+        room.RecentSpawnHistory.Clear();
+        foreach (var member in room.Members)
+        {
+            room.ScoreBySessionId[member.SessionId] = 0;
+        }
+
+        while (room.ActiveBatteryIds.Count < _config.ActiveBatteryCount)
+        {
+            var nextBattery = SelectNextBatteryId(room);
+            if (nextBattery < 0)
+            {
+                break;
+            }
+
+            ActivateBattery(room, nextBattery);
+        }
+    }
+
+    private bool ProcessBatteryRespawns(SpikeRoom room)
+    {
+        if (room.PendingRespawns.Count == 0)
+        {
+            return false;
+        }
+
+        var due = room.PendingRespawns
+            .Where(pair => pair.Value <= DateTimeOffset.UtcNow)
+            .Select(pair => pair.Key)
+            .ToList();
+        var changed = false;
+        foreach (var batteryId in due)
+        {
+            room.PendingRespawns.Remove(batteryId);
+            if (!room.ActiveBatteryIds.Contains(batteryId))
+            {
+                ActivateBattery(room, batteryId);
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private int SelectNextBatteryId(SpikeRoom room)
+    {
+        var available = Enumerable.Range(1, _config.SpawnPointCount)
+            .Where(id => !room.ActiveBatteryIds.Contains(id) && !room.PendingRespawns.ContainsKey(id))
+            .ToList();
+        if (available.Count == 0)
+        {
+            return -1;
+        }
+
+        var filtered = available.Where(id => !room.RecentSpawnHistory.Contains(id)).ToList();
+        if (filtered.Count == 0)
+        {
+            filtered = available;
+        }
+
+        return filtered.Min();
+    }
+
+    private void ActivateBattery(SpikeRoom room, int batteryId)
+    {
+        room.ActiveBatteryIds.Add(batteryId);
+        room.RecentSpawnHistory.Enqueue(batteryId);
+        while (room.RecentSpawnHistory.Count > 2)
+        {
+            room.RecentSpawnHistory.Dequeue();
+        }
+    }
 }
