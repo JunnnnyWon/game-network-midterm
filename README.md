@@ -45,6 +45,7 @@ This repository now includes a **Codex-native porting layer** alongside the orig
 
 The original `.claude/` directory is still kept as upstream/source reference during the migration.
 See [`docs/CODEX-MIGRATION.md`](docs/CODEX-MIGRATION.md) for the Codex-side mapping summary.
+See [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md) for the fastest Codex CLI usage path.
 
 ---
 
