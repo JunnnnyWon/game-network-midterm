@@ -39,6 +39,7 @@ namespace BatteryRushArena.Editor
             var savingObserved = false;
             var resultsObserved = false;
             var targetScoreObserved = false;
+            var movementObserved = false;
             var slowShotObserved = false;
             var trapObserved = false;
             var immunityObserved = false;
@@ -56,6 +57,7 @@ namespace BatteryRushArena.Editor
                 if (msg.Type == "room_snapshot" && msg.RoomState == "Saving") savingObserved = true;
                 if (msg.Type == "room_snapshot" && msg.RoomState == "ResultsReady") resultsObserved = true;
                 if (msg.Type == "room_snapshot" && msg.EndReason == "TargetScoreReached") targetScoreObserved = true;
+                if (msg.Type == "room_snapshot" && msg.Detail == "movement_applied") movementObserved = true;
                 if (msg.Type == "room_snapshot" && HasEffect(msg, "PlayerA", "SlowShot", 0.65f)) slowShotObserved = true;
                 if (msg.Type == "room_snapshot" && HasEffect(msg, "PlayerA", "Trap", 0.80f)) trapObserved = true;
                 if (msg.Type == "room_snapshot" && HasImmunity(msg, "PlayerA")) immunityObserved = true;
@@ -93,19 +95,42 @@ namespace BatteryRushArena.Editor
             await clientB.SetReadyAsync(true, cts.Token);
             var activeSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.RoomState == "Active", cts.Token);
 
-            await clientB.FireSlowShotAsync(cts.Token);
-            var slowShotSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "SlowShot", 0.65f), cts.Token);
-            if (slowShotSnapshot == null)
+            for (var tick = 1; tick <= 3; tick++)
             {
-                Debug.LogError("Slow shot effect was not observed.");
+                await clientA.SendInputFrameAsync(tick, Vector2.right, Vector2.right, false, cts.Token);
+                activeSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.Detail == "movement_applied" || msg.Detail == "battery_collected", cts.Token);
+            }
+
+            if (ExtractPlayerScore(activeSnapshot, "PlayerA") < 1)
+            {
+                Debug.LogError("Movement-driven battery pickup was not observed.");
                 return 3;
             }
 
-            await clientA.TriggerTrapAsync(1, cts.Token);
-            var ignoredStrongSlow = await WaitForAnyMessageAsync(clientA, msg => msg.Type == "trigger_trap_ignored", cts.Token, 2000);
+            await clientA.SendInputFrameAsync(4, Vector2.up, Vector2.right, false, cts.Token);
+            var trapSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "Trap", 0.80f), cts.Token, 4000);
+            if (trapSnapshot == null)
+            {
+                Debug.LogError("Trap was not observed from movement-driven overlap.");
+                return 3;
+            }
+
+            var playerAPosition = ExtractPosition(trapSnapshot, "PlayerA");
+            var playerBPosition = ExtractPosition(trapSnapshot, "PlayerB");
+            var aimAtPlayerA = (playerAPosition - playerBPosition).normalized;
+            await clientB.SendInputFrameAsync(1, Vector2.zero, aimAtPlayerA, true, cts.Token);
+            var slowShotSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "SlowShot", 0.65f), cts.Token);
+            if (slowShotSnapshot == null)
+            {
+                Debug.LogError("Slow shot effect was not observed from input-frame fire.");
+                return 3;
+            }
+
+            await clientA.SendInputFrameAsync(5, Vector2.up, Vector2.right, false, cts.Token);
+            var ignoredStrongSlow = await WaitForAnyMessageAsync(clientA, msg => msg.Type == "room_snapshot" && msg.Detail == "movement_applied", cts.Token, 2000);
             if (ignoredStrongSlow == null)
             {
-                Debug.LogError("Trap was not ignored while stronger slow was active.");
+                Debug.LogError("Movement after strong slow did not produce a snapshot.");
                 return 3;
             }
 
@@ -116,17 +141,17 @@ namespace BatteryRushArena.Editor
                 return 3;
             }
 
-            await clientA.TriggerTrapAsync(1, cts.Token);
-            var ignoredImmunity = await WaitForAnyMessageAsync(clientA, msg => msg.Type == "trigger_trap_ignored", cts.Token, 2000);
+            await clientA.SendInputFrameAsync(6, Vector2.up, Vector2.right, false, cts.Token);
+            var ignoredImmunity = await WaitForAnyMessageAsync(clientA, msg => msg.Type == "room_snapshot" && msg.Detail == "movement_applied", cts.Token, 2000);
             if (ignoredImmunity == null)
             {
-                Debug.LogError("Trap was not ignored during immunity window.");
+                Debug.LogError("Movement during immunity did not stay observable.");
                 return 3;
             }
 
             await Task.Delay(800, cts.Token);
-            await clientA.TriggerTrapAsync(1, cts.Token);
-            var trapSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "Trap", 0.80f), cts.Token, 4000);
+            await clientA.SendInputFrameAsync(7, Vector2.down, Vector2.right, false, cts.Token);
+            trapSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "Trap", 0.80f), cts.Token, 4000);
             if (trapSnapshot == null)
             {
                 Debug.LogError("Trap effect was not observed after immunity expired.");
@@ -145,11 +170,14 @@ namespace BatteryRushArena.Editor
 
                 foreach (var batteryId in activeSnapshot.ActiveBatteryIds)
                 {
-                    await clientA.CollectBatteryAsync(batteryId, cts.Token);
-                    var collectSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.Detail == "battery_collected", cts.Token);
+                    var batteryPosition = LookupBatteryPosition(batteryId);
+                    var currentPosition = ExtractPosition(activeSnapshot, "PlayerA");
+                    var moveVector = (batteryPosition - currentPosition).normalized;
+                    await clientA.SendInputFrameAsync(8 + points, moveVector, Vector2.right, false, cts.Token);
+                    var collectSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.Detail == "battery_collected", cts.Token, 4000);
                     if (collectSnapshot == null)
                     {
-                        Debug.LogError("Battery collection did not broadcast.");
+                        Debug.LogError("Movement-driven battery collection did not broadcast.");
                         return 3;
                     }
 
@@ -186,6 +214,7 @@ namespace BatteryRushArena.Editor
                           && mismatchObserved
                           && countdownObserved
                           && activeObserved
+                          && movementObserved
                           && targetScoreObserved
                           && savingObserved
                           && resultsObserved
@@ -198,7 +227,7 @@ namespace BatteryRushArena.Editor
             if (!success)
             {
                 Debug.LogError(
-                    $"Smoke failed. room={roomCode}, mismatch={mismatchObserved}, countdown={countdownObserved}, active={activeObserved}, targetScore={targetScoreObserved}, saving={savingObserved}, results={resultsObserved}, slowShot={slowShotObserved}, trap={trapObserved}, immunity={immunityObserved}, strongest={strongestSlowObserved}, stale={staleObserved}");
+                    $"Smoke failed. room={roomCode}, mismatch={mismatchObserved}, countdown={countdownObserved}, active={activeObserved}, movement={movementObserved}, targetScore={targetScoreObserved}, saving={savingObserved}, results={resultsObserved}, slowShot={slowShotObserved}, trap={trapObserved}, immunity={immunityObserved}, strongest={strongestSlowObserved}, stale={staleObserved}");
                 return 4;
             }
 
@@ -289,6 +318,44 @@ namespace BatteryRushArena.Editor
 
             return 0;
         }
+
+        private static Vector2 ExtractPosition(SpikeServerMessage message, string playerName)
+        {
+            foreach (var entry in message.PlayerPositions)
+            {
+                if (!entry.StartsWith(playerName + ":", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var parts = entry.Split(':');
+                if (parts.Length < 3)
+                {
+                    continue;
+                }
+
+                if (float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) &&
+                    float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+                {
+                    return new Vector2(x, y);
+                }
+            }
+
+            return Vector2.zero;
+        }
+
+        private static Vector2 LookupBatteryPosition(int batteryId) => batteryId switch
+        {
+            1 => new Vector2(0f, 0f),
+            2 => new Vector2(0f, 2f),
+            3 => new Vector2(0f, -2f),
+            4 => new Vector2(2f, 0f),
+            5 => new Vector2(-2f, 0f),
+            6 => new Vector2(1.5f, 1.5f),
+            7 => new Vector2(-1.5f, 1.5f),
+            8 => new Vector2(1.5f, -1.5f),
+            _ => Vector2.zero
+        };
 
         private static bool HasEffect(SpikeServerMessage message, string playerName, string source, float multiplier)
         {

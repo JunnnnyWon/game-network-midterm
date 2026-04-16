@@ -21,7 +21,14 @@ public sealed record SpikeServerConfig(
     float TrapMoveMultiplier,
     TimeSpan TrapDuration,
     TimeSpan TrapRetriggerCooldown,
-    TimeSpan PostSlowImmunity)
+    TimeSpan PostSlowImmunity,
+    float PlayerStepDistance,
+    float BatteryPickupRadius,
+    float TrapTriggerRadius,
+    float SlowShotRange,
+    SpikeVec2[] PlayerSpawnPoints,
+    SpikeVec2[] BatterySpawnPoints,
+    SpikeVec2[] TrapCenters)
 {
     /// <summary>
     /// Creates the default spike configuration aligned with ADR-0001 and ADR-0005.
@@ -44,5 +51,30 @@ public sealed record SpikeServerConfig(
         TrapMoveMultiplier: 0.80f,
         TrapDuration: TimeSpan.FromSeconds(0.75),
         TrapRetriggerCooldown: TimeSpan.FromSeconds(1.5),
-        PostSlowImmunity: TimeSpan.FromSeconds(0.5));
+        PostSlowImmunity: TimeSpan.FromSeconds(0.5),
+        PlayerStepDistance: 0.75f,
+        BatteryPickupRadius: 0.65f,
+        TrapTriggerRadius: 0.65f,
+        SlowShotRange: 3.5f,
+        PlayerSpawnPoints:
+        [
+            new SpikeVec2(-2.5f, 0f),
+            new SpikeVec2(2.5f, 0f)
+        ],
+        BatterySpawnPoints:
+        [
+            new SpikeVec2(0f, 0f),
+            new SpikeVec2(0f, 2f),
+            new SpikeVec2(0f, -2f),
+            new SpikeVec2(2f, 0f),
+            new SpikeVec2(-2f, 0f),
+            new SpikeVec2(1.5f, 1.5f),
+            new SpikeVec2(-1.5f, 1.5f),
+            new SpikeVec2(1.5f, -1.5f)
+        ],
+        TrapCenters:
+        [
+            new SpikeVec2(0f, 1f),
+            new SpikeVec2(0f, -1f)
+        ]);
 }

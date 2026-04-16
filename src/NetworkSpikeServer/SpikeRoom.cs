@@ -16,6 +16,7 @@ public sealed class SpikeRoom
     public List<ClientSession> Members { get; } = new();
     public Dictionary<string, bool> ReadyBySessionId { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> ScoreBySessionId { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, SpikeVec2> PlayerPositionsBySessionId { get; } = new(StringComparer.Ordinal);
     public List<int> ActiveBatteryIds { get; } = new();
     public Dictionary<int, DateTimeOffset> PendingRespawns { get; } = new();
     public Queue<int> RecentSpawnHistory { get; } = new();
@@ -28,6 +29,36 @@ public sealed class SpikeRoom
     public DateTimeOffset ActiveEndsUtc { get; set; }
     public string EndReason { get; set; } = string.Empty;
 
+}
+
+public readonly record struct SpikeVec2(float X, float Y)
+{
+    public SpikeVec2 Add(SpikeVec2 other) => new(X + other.X, Y + other.Y);
+
+    public SpikeVec2 Scale(float scalar) => new(X * scalar, Y * scalar);
+
+    public float LengthSquared() => (X * X) + (Y * Y);
+
+    public SpikeVec2 Normalized()
+    {
+        var lengthSquared = LengthSquared();
+        if (lengthSquared <= 0f)
+        {
+            return new SpikeVec2(0f, 0f);
+        }
+
+        var length = MathF.Sqrt(lengthSquared);
+        return new SpikeVec2(X / length, Y / length);
+    }
+
+    public float DistanceSquared(SpikeVec2 other)
+    {
+        var dx = X - other.X;
+        var dy = Y - other.Y;
+        return (dx * dx) + (dy * dy);
+    }
+
+    public float Dot(SpikeVec2 other) => (X * other.X) + (Y * other.Y);
 }
 
 public enum SpikeRoomState

@@ -90,15 +90,6 @@ namespace BatteryRushArena.NetworkSpike
         public Task SetReadyAsync(bool isReady, CancellationToken cancellationToken = default) =>
             SendAsync(new SpikeClientMessage { Type = "ready_state", IsReady = isReady }, cancellationToken);
 
-        public Task CollectBatteryAsync(int batteryId, CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "collect_battery", BatteryId = batteryId }, cancellationToken);
-
-        public Task FireSlowShotAsync(CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "fire_slow_shot" }, cancellationToken);
-
-        public Task TriggerTrapAsync(int trapId, CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "trigger_trap", TrapId = trapId }, cancellationToken);
-
         public async Task MaybeSendHeartbeatAsync(CancellationToken cancellationToken = default)
         {
             if (!IsConnected)

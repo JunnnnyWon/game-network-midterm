@@ -45,6 +45,7 @@ public sealed class ServerMessage
     public string[] Scoreboard { get; set; } = [];
     public float MatchTimeRemainingSeconds { get; set; }
     public string[] EffectStates { get; set; } = [];
+    public string[] PlayerPositions { get; set; } = [];
 }
 
 /// <summary>

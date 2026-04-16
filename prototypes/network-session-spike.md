@@ -108,6 +108,24 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 - The next slice should connect real player-position-based pickup resolution and then integrate slow-shot/trap effects into contested routing.
 
 
+## Findings — 2026-04-17 position-driven interaction slice
+
+### Evidence captured
+- External C# spike server builds successfully after authoritative player-position tracking was added.
+- Unity client scripts compile successfully via `dotnet build My project/Assembly-CSharp.csproj`.
+- Live protocol smoke proved that movement/input now drives position snapshots, battery pickup, trap trigger, and slow-shot targeting without relying on direct collect/trigger requests.
+
+### Observed results
+- **Active-room snapshots expose authoritative player positions** — PASS
+- **Moving into a battery pickup radius increments score without a `collect_battery` request** — PASS
+- **Moving into a trap region applies the trap slow automatically** — PASS
+- **Input-frame fire with aim data applies slow shot to an in-range target** — PASS
+
+### Notes
+- The authoritative path now depends on movement/input frames rather than the old direct collect/trap/fire requests, and the server rejects those legacy gameplay messages.
+- The next slice should convert these position snapshots into proper gameplay visuals so the client is no longer a pure debug HUD.
+
+
 ## Findings — 2026-04-16 slow-shot and trap slice
 
 ### Evidence captured

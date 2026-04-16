@@ -90,15 +90,6 @@ public sealed class SpikeServerHost
                     case "input_frame":
                         await HandleInputFrameAsync(session, message, cancellationToken);
                         break;
-                    case "collect_battery":
-                        await HandleCollectBatteryAsync(session, message, cancellationToken);
-                        break;
-                    case "fire_slow_shot":
-                        await HandleFireSlowShotAsync(session, cancellationToken);
-                        break;
-                    case "trigger_trap":
-                        await HandleTriggerTrapAsync(session, message, cancellationToken);
-                        break;
                     default:
                         await SendErrorAsync(session, "unsupported_message_type", cancellationToken);
                         break;
@@ -244,6 +235,19 @@ public sealed class SpikeServerHost
         }
 
         session.LastProcessedTick = message.Tick;
+        var movementApplied = false;
+        var slowShotApplied = false;
+        var trapApplied = false;
+        var batteryCollected = false;
+        lock (_roomRegistry.SyncRoot)
+        {
+            movementApplied = ProcessMovementFrame(room, session.SessionId, new SpikeVec2(message.MoveX, message.MoveY), out trapApplied, out batteryCollected);
+            if (message.FirePressed)
+            {
+                slowShotApplied = TryApplySlowShot(room, session.SessionId, new SpikeVec2(message.AimX, message.AimY));
+            }
+        }
+
         await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
         {
             Type = "input_frame_ack",
@@ -252,6 +256,11 @@ public sealed class SpikeServerHost
             Detail = $"mx={message.MoveX:F2},my={message.MoveY:F2},fire={message.FirePressed}"
         }, cancellationToken);
         Console.WriteLine($"[server] input ack session={session.SessionId} tick={message.Tick}");
+
+        if (movementApplied || slowShotApplied || trapApplied || batteryCollected)
+        {
+            await BroadcastRoomAsync(room, DescribeMovementDetail(batteryCollected, slowShotApplied, trapApplied, movementApplied), cancellationToken);
+        }
     }
 
     private async Task MonitorStaleSessionsAsync(CancellationToken cancellationToken)
@@ -422,6 +431,7 @@ public sealed class SpikeServerHost
         int[] activeBatteryIds;
         string[] scoreboard;
         string[] effectStates;
+        string[] playerPositions;
         float matchTimeRemaining;
         ClientSession[] targets;
 
@@ -456,6 +466,13 @@ public sealed class SpikeServerHost
                     return $"{member.PlayerName}:{effect.MoveMultiplier:0.00}:{effect.Source}:{Math.Max(0f, (float)(effect.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds):0.00}:{Math.Max(0f, (float)(effect.ImmuneUntilUtc - DateTimeOffset.UtcNow).TotalSeconds):0.00}";
                 })
                 .ToArray();
+            playerPositions = room.Members
+                .Select(member =>
+                {
+                    var position = room.PlayerPositionsBySessionId.GetValueOrDefault(member.SessionId);
+                    return FormattableString.Invariant($"{member.PlayerName}:{position.X:0.00}:{position.Y:0.00}");
+                })
+                .ToArray();
             targets = room.Members.ToArray();
         }
 
@@ -479,6 +496,7 @@ public sealed class SpikeServerHost
                     ActiveBatteryIds = activeBatteryIds,
                     Scoreboard = scoreboard,
                     EffectStates = effectStates,
+                    PlayerPositions = playerPositions,
                     MatchTimeRemainingSeconds = matchTimeRemaining
                 };
                 await LengthPrefixedProtocol.WriteAsync(member.Stream, message, cancellationToken);
@@ -497,155 +515,18 @@ public sealed class SpikeServerHost
             Error = error
         }, cancellationToken);
 
-    private async Task HandleCollectBatteryAsync(ClientSession session, ClientMessage message, CancellationToken cancellationToken)
-    {
-        var room = _roomRegistry.FindRoom(session);
-        if (room is null)
-        {
-            await SendErrorAsync(session, "not_in_room", cancellationToken);
-            return;
-        }
-
-        var batteryCollected = false;
-        lock (_roomRegistry.SyncRoot)
-        {
-            if (room.State != SpikeRoomState.Active)
-            {
-                batteryCollected = false;
-            }
-            else if (room.ActiveBatteryIds.Remove(message.BatteryId))
-            {
-                room.PendingRespawns[message.BatteryId] = DateTimeOffset.UtcNow.Add(_config.BatteryRespawnDelay);
-                room.ScoreBySessionId[session.SessionId] = room.ScoreBySessionId.GetValueOrDefault(session.SessionId, 0) + 1;
-                batteryCollected = true;
-
-                if (room.ScoreBySessionId[session.SessionId] >= _config.TargetScore)
-                {
-                    room.State = SpikeRoomState.Ended;
-                    room.StateEnteredUtc = DateTimeOffset.UtcNow;
-                    room.EndReason = "TargetScoreReached";
-                }
-            }
-        }
-
-        if (!batteryCollected)
-        {
-            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
-            {
-                Type = "collect_battery_ignored",
-                SessionId = session.SessionId,
-                Error = "battery_not_available"
-            }, cancellationToken);
-            return;
-        }
-
-        await BroadcastRoomAsync(room, "battery_collected", cancellationToken);
-    }
-
-    private async Task HandleFireSlowShotAsync(ClientSession session, CancellationToken cancellationToken)
-    {
-        var room = _roomRegistry.FindRoom(session);
-        if (room is null)
-        {
-            await SendErrorAsync(session, "not_in_room", cancellationToken);
-            return;
-        }
-
-        var applied = false;
-        lock (_roomRegistry.SyncRoot)
-        {
-            if (room.State != SpikeRoomState.Active)
-            {
-                applied = false;
-            }
-            else if (room.SlowShotReadyAtBySessionId.GetValueOrDefault(session.SessionId) > DateTimeOffset.UtcNow)
-            {
-                applied = false;
-            }
-            else
-            {
-                var target = room.Members.FirstOrDefault(member => member.SessionId != session.SessionId);
-                if (target is not null)
-                {
-                    applied = ApplySlow(room, target.SessionId, _config.SlowShotMoveMultiplier, _config.SlowShotDuration, "SlowShot");
-                    room.SlowShotReadyAtBySessionId[session.SessionId] = DateTimeOffset.UtcNow.Add(_config.SlowShotCooldown);
-                }
-            }
-        }
-
-        if (!applied)
-        {
-            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
-            {
-                Type = "fire_slow_shot_ignored",
-                SessionId = session.SessionId,
-                Error = "cooldown_or_no_target"
-            }, cancellationToken);
-            return;
-        }
-
-        await BroadcastRoomAsync(room, "slow_shot_applied", cancellationToken);
-    }
-
-    private async Task HandleTriggerTrapAsync(ClientSession session, ClientMessage message, CancellationToken cancellationToken)
-    {
-        var room = _roomRegistry.FindRoom(session);
-        if (room is null)
-        {
-            await SendErrorAsync(session, "not_in_room", cancellationToken);
-            return;
-        }
-
-        var applied = false;
-        lock (_roomRegistry.SyncRoot)
-        {
-            if (room.State != SpikeRoomState.Active)
-            {
-                applied = false;
-            }
-            else
-            {
-                var key = $"{session.SessionId}:{message.TrapId}";
-                var effect = room.EffectsBySessionId.GetValueOrDefault(session.SessionId);
-                if (effect is not null && effect.ImmuneUntilUtc > DateTimeOffset.UtcNow)
-                {
-                    applied = false;
-                }
-                else if (room.TrapRetriggerReadyAtBySessionTrapKey.GetValueOrDefault(key) <= DateTimeOffset.UtcNow)
-                {
-                    applied = ApplySlow(room, session.SessionId, _config.TrapMoveMultiplier, _config.TrapDuration, "Trap");
-                    if (applied)
-                    {
-                        room.TrapRetriggerReadyAtBySessionTrapKey[key] = DateTimeOffset.UtcNow.Add(_config.TrapRetriggerCooldown);
-                    }
-                }
-            }
-        }
-
-        if (!applied)
-        {
-            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
-            {
-                Type = "trigger_trap_ignored",
-                SessionId = session.SessionId,
-                Error = "cooldown_or_immune"
-            }, cancellationToken);
-            return;
-        }
-
-        await BroadcastRoomAsync(room, "trap_applied", cancellationToken);
-    }
-
     private void InitializeActiveMatch(SpikeRoom room)
     {
         room.ActiveBatteryIds.Clear();
         room.PendingRespawns.Clear();
         room.RecentSpawnHistory.Clear();
-        foreach (var member in room.Members)
+        for (var index = 0; index < room.Members.Count; index++)
         {
+            var member = room.Members[index];
             room.ScoreBySessionId[member.SessionId] = 0;
             room.EffectsBySessionId[member.SessionId] = new PlayerEffectState();
             room.SlowShotReadyAtBySessionId[member.SessionId] = DateTimeOffset.MinValue;
+            room.PlayerPositionsBySessionId[member.SessionId] = _config.PlayerSpawnPoints[index % _config.PlayerSpawnPoints.Length];
         }
 
         while (room.ActiveBatteryIds.Count < _config.ActiveBatteryCount)
@@ -754,5 +635,208 @@ public sealed class SpikeServerHost
         effect.Source = source;
         effect.ExpiresAtUtc = DateTimeOffset.UtcNow.Add(duration);
         return true;
+    }
+
+    private bool ProcessMovementFrame(SpikeRoom room, string sessionId, SpikeVec2 requestedMove, out bool trapApplied, out bool batteryCollected)
+    {
+        trapApplied = false;
+        batteryCollected = false;
+        if (requestedMove.LengthSquared() <= 0f)
+        {
+            return false;
+        }
+
+        var move = requestedMove.Normalized();
+        var current = room.PlayerPositionsBySessionId.GetValueOrDefault(sessionId);
+        var multiplier = (room.EffectsBySessionId.GetValueOrDefault(sessionId) ?? new PlayerEffectState()).MoveMultiplier;
+        var proposed = current.Add(move.Scale(_config.PlayerStepDistance * multiplier));
+
+        var trapId = LookupTrapAtPosition(proposed);
+        if (trapId is not null && TryApplyTrap(room, sessionId, trapId.Value))
+        {
+            trapApplied = true;
+            multiplier = (room.EffectsBySessionId.GetValueOrDefault(sessionId) ?? new PlayerEffectState()).MoveMultiplier;
+            proposed = current.Add(move.Scale(_config.PlayerStepDistance * multiplier));
+        }
+
+        room.PlayerPositionsBySessionId[sessionId] = proposed;
+        batteryCollected = TryProcessBatteryPickup(room);
+        return true;
+    }
+
+    private bool TryApplySlowShot(SpikeRoom room, string sourceSessionId, SpikeVec2 aimVector)
+    {
+        if (room.State != SpikeRoomState.Active)
+        {
+            return false;
+        }
+
+        if (room.SlowShotReadyAtBySessionId.GetValueOrDefault(sourceSessionId) > DateTimeOffset.UtcNow)
+        {
+            return false;
+        }
+
+        if (!room.PlayerPositionsBySessionId.TryGetValue(sourceSessionId, out var sourcePosition))
+        {
+            return false;
+        }
+
+        var normalizedAim = aimVector.LengthSquared() > 0f ? aimVector.Normalized() : new SpikeVec2(0f, 0f);
+        var target = room.Members
+            .Where(member => member.SessionId != sourceSessionId)
+            .Select(member => new
+            {
+                Member = member,
+                Position = room.PlayerPositionsBySessionId.GetValueOrDefault(member.SessionId)
+            })
+            .Select(candidate => new
+            {
+                candidate.Member,
+                Delta = new SpikeVec2(candidate.Position.X - sourcePosition.X, candidate.Position.Y - sourcePosition.Y)
+            })
+            .Select(candidate => new
+            {
+                candidate.Member,
+                candidate.Delta,
+                DistanceSquared = candidate.Delta.LengthSquared(),
+                AimAlignment = normalizedAim.LengthSquared() > 0f ? candidate.Delta.Normalized().Dot(normalizedAim) : 1f
+            })
+            .Where(candidate => candidate.DistanceSquared <= _config.SlowShotRange * _config.SlowShotRange)
+            .Where(candidate => candidate.AimAlignment >= 0.25f)
+            .OrderBy(candidate => candidate.DistanceSquared)
+            .FirstOrDefault();
+
+        if (target is null)
+        {
+            return false;
+        }
+
+        var applied = ApplySlow(room, target.Member.SessionId, _config.SlowShotMoveMultiplier, _config.SlowShotDuration, "SlowShot");
+        if (applied)
+        {
+            room.SlowShotReadyAtBySessionId[sourceSessionId] = DateTimeOffset.UtcNow.Add(_config.SlowShotCooldown);
+        }
+
+        return applied;
+    }
+
+    private bool TryApplyTrap(SpikeRoom room, string sessionId, int trapId)
+    {
+        if (room.State != SpikeRoomState.Active)
+        {
+            return false;
+        }
+
+        var effect = room.EffectsBySessionId.GetValueOrDefault(sessionId);
+        if (effect is not null && effect.ImmuneUntilUtc > DateTimeOffset.UtcNow)
+        {
+            return false;
+        }
+
+        var key = $"{sessionId}:{trapId}";
+        if (room.TrapRetriggerReadyAtBySessionTrapKey.GetValueOrDefault(key) > DateTimeOffset.UtcNow)
+        {
+            return false;
+        }
+
+        var applied = ApplySlow(room, sessionId, _config.TrapMoveMultiplier, _config.TrapDuration, "Trap");
+        if (!applied)
+        {
+            return false;
+        }
+
+        room.TrapRetriggerReadyAtBySessionTrapKey[key] = DateTimeOffset.UtcNow.Add(_config.TrapRetriggerCooldown);
+        return true;
+    }
+
+    private bool TryProcessBatteryPickup(SpikeRoom room)
+    {
+        if (room.State != SpikeRoomState.Active)
+        {
+            return false;
+        }
+
+        var pickupRadiusSquared = _config.BatteryPickupRadius * _config.BatteryPickupRadius;
+        var changed = false;
+        foreach (var batteryId in room.ActiveBatteryIds.ToArray())
+        {
+            var batteryCenter = LookupBatteryPosition(batteryId);
+            var eligible = room.Members
+                .Select((member, joinIndex) => new
+                {
+                    Member = member,
+                    JoinIndex = joinIndex,
+                    Position = room.PlayerPositionsBySessionId.GetValueOrDefault(member.SessionId)
+                })
+                .Select(candidate => new
+                {
+                    candidate.Member,
+                    candidate.JoinIndex,
+                    DistanceSquared = candidate.Position.DistanceSquared(batteryCenter)
+                })
+                .Where(candidate => candidate.DistanceSquared <= pickupRadiusSquared)
+                .OrderBy(candidate => candidate.DistanceSquared)
+                .ThenBy(candidate => candidate.JoinIndex)
+                .FirstOrDefault();
+
+            if (eligible is null)
+            {
+                continue;
+            }
+
+            room.ActiveBatteryIds.Remove(batteryId);
+            room.PendingRespawns[batteryId] = DateTimeOffset.UtcNow.Add(_config.BatteryRespawnDelay);
+            room.ScoreBySessionId[eligible.Member.SessionId] = room.ScoreBySessionId.GetValueOrDefault(eligible.Member.SessionId, 0) + 1;
+            changed = true;
+
+            if (room.ScoreBySessionId[eligible.Member.SessionId] >= _config.TargetScore)
+            {
+                room.State = SpikeRoomState.Ended;
+                room.StateEnteredUtc = DateTimeOffset.UtcNow;
+                room.EndReason = "TargetScoreReached";
+            }
+        }
+
+        return changed;
+    }
+
+    private SpikeVec2 LookupBatteryPosition(int batteryId)
+    {
+        var index = Math.Clamp(batteryId - 1, 0, _config.BatterySpawnPoints.Length - 1);
+        return _config.BatterySpawnPoints[index];
+    }
+
+    private int? LookupTrapAtPosition(SpikeVec2 position)
+    {
+        var triggerRadiusSquared = _config.TrapTriggerRadius * _config.TrapTriggerRadius;
+        for (var index = 0; index < _config.TrapCenters.Length; index++)
+        {
+            if (position.DistanceSquared(_config.TrapCenters[index]) <= triggerRadiusSquared)
+            {
+                return index + 1;
+            }
+        }
+
+        return null;
+    }
+
+    private static string DescribeMovementDetail(bool batteryCollected, bool slowShotApplied, bool trapApplied, bool movementApplied)
+    {
+        if (batteryCollected)
+        {
+            return "battery_collected";
+        }
+
+        if (slowShotApplied)
+        {
+            return "slow_shot_applied";
+        }
+
+        if (trapApplied)
+        {
+            return "trap_applied";
+        }
+
+        return movementApplied ? "movement_applied" : "input_observed";
     }
 }

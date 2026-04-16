@@ -51,13 +51,13 @@ namespace BatteryRushArena.NetworkSpike
                 if (move.sqrMagnitude > 0.0001f)
                 {
                     _tick += 1;
-                    _ = _client.SendInputFrameAsync(_tick, move, Vector2.right, false, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    _ = _client.SendInputFrameAsync(_tick, move, ReadAimVector(), false, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                 }
 
                 if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
                 {
                     _tick += 1;
-                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), Vector2.right, true, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), ReadAimVector(), true, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                 }
             }
         }
@@ -130,7 +130,7 @@ namespace BatteryRushArena.NetworkSpike
                 _tick += 1;
                 if (_client != null)
                 {
-                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), Vector2.right, Mouse.current != null && Mouse.current.leftButton.isPressed, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), ReadAimVector(), Mouse.current != null && Mouse.current.leftButton.isPressed, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                 }
             }
 
@@ -148,28 +148,10 @@ namespace BatteryRushArena.NetworkSpike
             GUILayout.Label($"Scoreboard: {string.Join(" | ", _lastServerMessage.Scoreboard ?? Array.Empty<string>())}");
             GUILayout.Label($"Active Batteries: {string.Join(", ", _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())}");
             GUILayout.Label($"Effects: {string.Join(" | ", _lastServerMessage.EffectStates ?? Array.Empty<string>())}");
+            GUILayout.Label($"Player Positions: {string.Join(" | ", _lastServerMessage.PlayerPositions ?? Array.Empty<string>())}");
             if (string.Equals(_lastServerMessage.RoomState, "Active", StringComparison.OrdinalIgnoreCase))
             {
-                GUILayout.BeginHorizontal();
-                foreach (var batteryId in _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())
-                {
-                    if (GUILayout.Button($"Collect B{batteryId}") && _client != null)
-                    {
-                        _ = _client.CollectBatteryAsync(batteryId, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                    }
-                }
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Fire Slow Shot") && _client != null)
-                {
-                    _ = _client.FireSlowShotAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-
-                if (GUILayout.Button("Trigger Trap Self") && _client != null)
-                {
-                    _ = _client.TriggerTrapAsync(1, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-                GUILayout.EndHorizontal();
+                GUILayout.Label("Move with WASD, aim with the mouse, and left click to drive authoritative pickup/trap/slow checks.");
             }
 
             GUILayout.Space(8);
@@ -199,6 +181,19 @@ namespace BatteryRushArena.NetworkSpike
             if (Keyboard.current != null && Keyboard.current.aKey.isPressed) move.x -= 1f;
             if (Keyboard.current != null && Keyboard.current.dKey.isPressed) move.x += 1f;
             return move.sqrMagnitude > 1f ? move.normalized : move;
+        }
+
+        private static Vector2 ReadAimVector()
+        {
+            if (Mouse.current == null)
+            {
+                return Vector2.right;
+            }
+
+            var mousePosition = Mouse.current.position.ReadValue();
+            var anchor = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            var aim = mousePosition - anchor;
+            return aim.sqrMagnitude > 0.0001f ? aim.normalized : Vector2.right;
         }
 
         private void AppendLog(string message)
