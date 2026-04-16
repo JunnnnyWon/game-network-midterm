@@ -30,3 +30,22 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ## Output expected after execution
 - A short findings section appended here with `PASS` / `FAIL` for each criterion.
 - Follow-up implementation adjustments if needed.
+
+
+## Findings — 2026-04-16 implementation run
+
+### Evidence captured
+- External C# spike server builds successfully with `dotnet build src/NetworkSpikeServer/NetworkSpikeServer.csproj`.
+- Unity project scripts compile successfully in batchmode (`My project/Logs/network-compile-batch.log`).
+- Live protocol smoke against the running spike server passed with two local clients plus one mismatch client.
+
+### Observed results
+- **Two local clients can connect and join the same room** — PASS
+- **Protocol mismatch rejects cleanly** — PASS
+- **Heartbeat timeout path is observable** — PASS (`session_stale` with `heartbeat_timeout`)
+- **One tick-aligned input frame path is observable** — PASS (`input_frame_ack` for tick 1)
+
+### Notes
+- The runtime Unity bootstrap now lives under `My project/Assets/Scripts/NetworkSpike/`.
+- The external server lives under `src/NetworkSpikeServer/`.
+- A full interactive play-mode pass in the Unity Editor is still recommended as the next manual sanity check, but the spike contract itself is now implemented and evidenced.

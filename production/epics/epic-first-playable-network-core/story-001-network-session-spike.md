@@ -1,6 +1,6 @@
 # Story 001 — Network Session Spike
 
-Status: Ready for implementation
+Status: Implemented
 Type: Technical spike
 Epic: production/epics/epic-first-playable-network-core/EPIC.md
 TR-IDs:
@@ -17,3 +17,8 @@ Implement the narrowest runnable Unity client + external server bootstrap needed
 - Heartbeat timeout path is observable.
 - One tick-aligned input frame path is observable.
 - Findings are appended to prototypes/network-session-spike.md.
+
+## Implementation Evidence
+- Unity runtime/client bootstrap added under `My project/Assets/Scripts/NetworkSpike/`.
+- External spike server added under `src/NetworkSpikeServer/`.
+- Findings recorded in `prototypes/network-session-spike.md`.

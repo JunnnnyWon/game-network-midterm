@@ -140,3 +140,12 @@ $RECYCLE.BIN/
 *.msp
 *.lnk
 .omx/
+# === Unity Project Outputs ===
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
