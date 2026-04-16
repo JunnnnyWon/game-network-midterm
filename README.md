@@ -83,8 +83,8 @@ These are the five workflows currently treated as the **validated Codex path**:
 
 ### 1) Clone the repo
 ```bash
-git clone https://github.com/JunnnnyWon/Claude-Code-Game-Studios.git
-cd Claude-Code-Game-Studios
+git clone https://github.com/JunnnnyWon/Codex-Game-Studios.git
+cd Codex-Game-Studios
 ```
 
 ### 2) Run verification first
