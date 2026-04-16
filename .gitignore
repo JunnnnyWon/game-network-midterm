@@ -149,3 +149,6 @@ $RECYCLE.BIN/
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 [Rr]ecordings/
+# === IDE / Solution Outputs ===
+.vscode/
+*.slnx
