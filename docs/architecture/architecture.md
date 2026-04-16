@@ -1,11 +1,11 @@
 # Battery Rush Arena — Master Architecture
 
 ## Document Status
-- Version: 0.1-draft
+- Version: 0.2-draft
 - Last Updated: 2026-04-16
 - Engine: Unity 6.3 LTS (6000.3.10f1)
 - GDDs Covered: design/gdd/game-concept.md, design/gdd/systems-index.md
-- ADRs Referenced: adr-0001-network-authority-and-transport-strategy.md, adr-0002-match-state-machine-and-event-ordering.md, adr-0003-persistence-boundary-and-leaderboard-formula.md, adr-0004-runtime-ui-stack-and-screen-flow.md, adr-0005-battery-spawn-and-score-pacing-model.md, adr-0006-slow-shot-and-trap-fairness-rules.md
+- ADRs Referenced: adr-0001-network-authority-and-transport-strategy.md, adr-0002-match-state-machine-and-event-ordering.md, adr-0003-persistence-boundary-and-leaderboard-formula.md, adr-0004-runtime-ui-stack-and-screen-flow.md, adr-0005-battery-spawn-and-score-pacing-model.md, adr-0006-slow-shot-and-trap-fairness-rules.md, adr-0007-player-controller-and-input-runtime-contract.md, adr-0008-audio-feedback-event-contract.md
 
 ## Engine Knowledge Gap Summary
 - Unity 6.3 LTS exact build is **post-cutoff / high-risk** for version-sensitive API details.
@@ -44,13 +44,13 @@
 | Layer | Module | Owns | Notes |
 |------|--------|------|------|
 | Foundation | Network Session & Transport | socket connections, client identity, message framing, server tick dispatch | Custom protocol between Unity client and C# server; no direct Unity-to-MySQL access |
-| Foundation | Match Persistence Gateway | async result write queue, leaderboard query contract, idempotency keys | Runs on the server side and is the only layer that touches MySQL |
+| Foundation | Results Persistence & Leaderboard | async result write queue, leaderboard query contract, idempotency keys | Runs on the server side and is the only layer that touches MySQL; the persistence gateway is an internal subcomponent |
 | Core | Match Lifecycle & Room State | lobby, ready, countdown, active, ended, saving, results-ready states | Server authoritative state machine |
-| Core | Player Controller & Input | local input capture, local movement intent, aim direction, local camera focus | Client-owned input, server-approved simulation outcome |
+| Core | Player Controller & Input | local input capture, tick-aligned input frames, aim direction, local camera focus | Governed by ADR-0007; client predicts presentation only while server approves simulation outcome |
 | Feature | Arena Battery Economy & Scoring | battery spawn table, pickup resolution, score totals, contested pickup ordering | Server owns authoritative scoring |
 | Feature | Slow Shot & Trap Interaction | projectile state, debuff application, trap triggers, effect durations | Server resolves hits and debuffs; client renders feedback |
 | Presentation | HUD, Results, and Ranking UI | match HUD, countdown, score display, results screen, leaderboard screen | UI Toolkit runtime UI |
-| Presentation | Audio Feedback | pickup SFX, hit SFX, countdown cues, win/loss cues | Optional polish layer; no gameplay authority |
+| Presentation | Audio Feedback | pickup SFX, hit SFX, countdown cues, win/loss cues | Governed by ADR-0008; Vertical Slice polish layer with no gameplay authority |
 
 ## Module Ownership
 
@@ -69,13 +69,13 @@
   - Server: .NET sockets / async networking
 - **Boundary rule**: clients may submit intents only; they never submit authoritative score, trap, or victory state. Transport sends a heartbeat after 2 seconds of silence, marks sessions stale after 5 seconds without heartbeat/input, and does not allow reconnect to an active match in the MVP.
 
-#### Match Persistence Gateway
+#### Results Persistence & Leaderboard
 - **Owns**: MySQL connection access, result insert/update logic, leaderboard query logic, retry-safe write operations
 - **Exposes**:
   - `PersistMatchResult(MatchResultPayload payload)`
   - `QueryLeaderboard(LeaderboardScope scope, int limit)`
 - **Consumes**: final match result emitted by Match Lifecycle & Room State
-- **Boundary rule**: this module is server-only; Unity clients never connect to MySQL directly
+- **Boundary rule**: this module is server-only; Unity clients never connect to MySQL directly. The persistence gateway is an implementation detail inside this system boundary, not a separately named architecture module.
 
 ### Core
 
@@ -90,12 +90,12 @@
 - **Boundary rule**: all clients render the state they receive; they do not infer match state on their own
 
 #### Player Controller & Input
-- **Owns**: local key/mouse mapping, movement vector generation, aim direction, fire intent, menu confirm/back intent
+- **Owns**: local gameplay/UI action maps, movement vector generation, tick-aligned `InputFrame` packaging, aim direction, fire edge buffering, local camera follow/prediction hooks
 - **Exposes**:
   - `BuildInputFrame()`
-  - `BuildAimSnapshot()`
-- **Consumes**: match state updates, debuff/trap feedback, authoritative transform corrections
-- **Boundary rule**: client predicts presentation only; final position and movement-affecting debuffs come from server resolution
+  - `ApplyPredictedInput()`
+- **Consumes**: match state updates, debuff/trap feedback, authoritative transform corrections, UI screen-state transitions
+- **Boundary rule**: ADR-0007 fixes keyboard/mouse input to Unity Input System gameplay/UI maps; the client predicts presentation only, while final position and movement-affecting debuffs always come from server resolution
 
 ### Feature
 
@@ -126,9 +126,9 @@
 - **Boundary rule**: UI never computes match outcomes; it only renders provided data
 
 #### Audio Feedback
-- **Owns**: one-shot audio cues and ambience
-- **Consumes**: safe presentation events from HUD and gameplay event bus
-- **Boundary rule**: audio must not be a source of authority or hidden state
+- **Owns**: one-shot cue routing, mixer-group playback, optional ambience, cue deduplication
+- **Consumes**: authoritative presentation events plus local UI-only confirm/back cues
+- **Boundary rule**: ADR-0008 keeps audio in Vertical Slice scope; audio must not be a source of authority, hidden state, or speculative gameplay confirmation beyond the local fire-whoosh/UI cue exceptions defined there
 
 ## Data Flow
 
@@ -141,17 +141,17 @@
 
 ### 2. Live Match Frame Flow
 1. Unity client reads keyboard/mouse via the new Input System.
-2. Player Controller builds an `InputFrame` (move vector, aim vector, fire intent).
+2. Player Controller caches device state and builds a tick-aligned `InputFrame` (move vector, aim vector, fire intent edge).
 3. Network Session sends input intent to server.
 4. Server simulates player movement, battery overlaps, slow-shot and trap outcomes, then updates room state.
 5. Server broadcasts authoritative snapshot at 20 Hz: positions, scores, active effects, timer, battery state.
-6. Client applies interpolation/correction and renders HUD/audio updates.
+6. Client applies interpolation/correction, predicts local presentation within ADR-0007 limits, and renders HUD/audio updates.
 
 ### 3. Scoring and Victory Flow
 1. Server resolves battery pickup order for the current tick.
 2. Scoreboard updates on server only.
 3. If a player reaches 10 points, Match Lifecycle ends immediately with `TargetScoreReached`.
-4. If timer expires first, Match Lifecycle compares final scores and resolves timeout winner or tie rule.
+4. If timer expires first, Match Lifecycle compares final scores and resolves timeout winner or `Draw`.
 5. End-of-match snapshot is broadcast to all clients before persistence begins.
 
 ### 4. Persistence and Leaderboard Flow
@@ -191,6 +191,7 @@ public enum MatchState {
 public enum MatchEndReason {
     TargetScoreReached,
     TimeExpired,
+    Draw,
     DisconnectForfeit,
     ServerAbort
 }
@@ -216,11 +217,15 @@ public interface IResultPersistenceService {
     Task PersistMatchResultAsync(MatchResultPayload payload, CancellationToken ct);
     Task<IReadOnlyList<LeaderboardRow>> QueryLeaderboardAsync(int limit, CancellationToken ct);
 }
+
+public interface IAudioCueRouter {
+    void Play(AudioCueEvent cueEvent);
+}
 ```
 
 **Invariants**
 - Only the server can mutate score, effect state, battery availability, or match state.
-- Only `MatchPersistenceGateway` may write to or query MySQL.
+- Only `ResultsPersistenceAndLeaderboard` may write to or query MySQL.
 - UI and Audio modules consume snapshots/events and never own competitive state.
 - Duplicate client messages must be safe to ignore or deduplicate by tick + player id.
 
@@ -232,8 +237,10 @@ public interface IResultPersistenceService {
   - ADR-0004 Runtime UI Stack and Screen Flow
   - ADR-0005 Battery Spawn and Score Pacing Model
   - ADR-0006 Slow Shot and Trap Fairness Rules
+  - ADR-0007 Player Controller and Input Runtime Contract
+  - ADR-0008 Audio Feedback Event Contract
 - Architecture conflicts with existing ADRs: none
-- Traceability status: all foundation/core/presentation requirements identified in the current baseline now have ADR coverage
+- Traceability status: the architecture baseline now maps every currently identified system to an accepted ADR. Re-run `/architecture-review` to refresh the generated traceability index and review report.
 
 ## Required ADRs
 
@@ -244,8 +251,10 @@ All architecture-critical ADRs identified for the MVP are now written:
 - ADR-0004 Runtime UI Stack and Screen Flow
 - ADR-0005 Battery Spawn and Score Pacing Model
 - ADR-0006 Slow Shot and Trap Fairness Rules
+- ADR-0007 Player Controller and Input Runtime Contract
+- ADR-0008 Audio Feedback Event Contract
 
-No remaining blocking ADR gaps are known at the architecture level before MVP system GDD authoring.
+No remaining blocking ADR gaps are known in the architecture baseline. The next validation step is to re-run `/architecture-review` so the generated review artifacts reflect ADR-0007 and ADR-0008.
 
 ## Architecture Principles
 1. **Server authority over all competitive outcomes** — score, pickups, effects, and victory never originate from the client.
@@ -255,5 +264,4 @@ No remaining blocking ADR gaps are known at the architecture level before MVP sy
 5. **2-player MVP, 4-player-ready seams** — MVP implementation is optimized for 2-player delivery while protocol and UI structures leave room for future scaling.
 
 ## Open Questions
-- None at the architecture level. Remaining adjustments should happen through system GDD review or superseding ADRs if the design changes.
-
+- None at the architecture level. Remaining adjustments should happen through system GDD review, a fresh `/architecture-review` refresh, or superseding ADRs if the design changes.

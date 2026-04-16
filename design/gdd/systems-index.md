@@ -11,6 +11,8 @@
 
 *Battery Rush Arena* is a small-scale competitive online game built around one short repeatable loop: join a room, start a match, collect batteries, disrupt opponents, resolve the winner on the server, and store the result in MySQL for leaderboard display. The game needs a small number of tightly-coupled systems rather than a wide feature set, so the design emphasis is on deterministic rules, authoritative match flow, and clear player-facing feedback.
 
+The current architecture baseline now includes accepted ADR coverage for transport, room state, input runtime, scoring/pacing, disruption fairness, persistence, runtime UI, and audio-event routing. `Audio Feedback` remains a **Vertical Slice** system, while the other seven systems remain MVP-critical.
+
 ---
 
 ## Systems Enumeration
@@ -18,13 +20,13 @@
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
 | 1 | Match Lifecycle & Room State | Core | MVP | Not Started | — | Network Session & Transport |
-| 2 | Network Session & Transport | Core | MVP | Not Started | — | — |
+| 2 | Network Session & Transport | Foundation | MVP | Not Started | — | — |
 | 3 | Player Controller & Input | Core | MVP | Not Started | — | Match Lifecycle & Room State |
 | 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Not Started | — | Match Lifecycle & Room State, Player Controller & Input |
 | 5 | Slow Shot & Trap Interaction | Gameplay | MVP | Not Started | — | Player Controller & Input, Arena Battery Economy & Scoring |
 | 6 | Results Persistence & Leaderboard | Persistence | MVP | Not Started | — | Match Lifecycle & Room State, Arena Battery Economy & Scoring |
 | 7 | HUD, Results, and Ranking UI | UI | MVP | Not Started | — | Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard |
-| 8 | Audio Feedback (inferred) | Audio | Vertical Slice | Not Started | — | Match Lifecycle & Room State, Slow Shot & Trap Interaction |
+| 8 | Audio Feedback | Audio | Vertical Slice | Not Started | — | Match Lifecycle & Room State, Slow Shot & Trap Interaction |
 
 ---
 
@@ -32,7 +34,8 @@
 
 | Category | Description | Typical Systems |
 |----------|-------------|-----------------|
-| **Core** | Foundation systems everything depends on | Networking, room state, input, timing |
+| **Foundation** | Lowest-level technical systems everything else depends on | Networking, transport, protocol, shared authority seams |
+| **Core** | Match-runtime systems that sit directly on top of the foundation | Room state, input, timing |
 | **Gameplay** | The systems that make the match competitive | Battery scoring, trap logic, skill logic |
 | **Persistence** | State that survives beyond a single round | Match results, rankings, profile stats |
 | **UI** | Player-facing information displays | HUD, countdown, results screen, leaderboard |
@@ -71,7 +74,7 @@
 ### Presentation Layer (depends on features)
 
 1. **HUD, Results, and Ranking UI** — depends on: Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard
-2. **Audio Feedback (inferred)** — depends on: Match Lifecycle & Room State, Slow Shot & Trap Interaction
+2. **Audio Feedback** — depends on: Match Lifecycle & Room State, Slow Shot & Trap Interaction
 
 ### Polish Layer (depends on everything)
 
@@ -90,7 +93,22 @@
 | 5 | Slow Shot & Trap Interaction | MVP | Feature | game-designer, systems-designer | M |
 | 6 | Results Persistence & Leaderboard | MVP | Feature | systems-designer, analytics-engineer | M |
 | 7 | HUD, Results, and Ranking UI | MVP | Presentation | ux-designer, ui-programmer | M |
-| 8 | Audio Feedback (inferred) | Vertical Slice | Presentation | audio-director, sound-designer | S |
+| 8 | Audio Feedback | Vertical Slice | Presentation | audio-director, sound-designer | S |
+
+---
+
+## Architecture Baseline (Accepted ADR Coverage)
+
+| System | Governing ADR(s) | Notes |
+|--------|------------------|-------|
+| Network Session & Transport | ADR-0001 | Foundation contract for dedicated server transport and authority boundary |
+| Match Lifecycle & Room State | ADR-0002 | Fixed authoritative room-state machine and end-of-match ordering |
+| Player Controller & Input | ADR-0007 | Unity Input System action maps, tick-aligned input frames, client prediction boundary |
+| Arena Battery Economy & Scoring | ADR-0005 | Battery pacing, contested pickup ordering, target score contract |
+| Slow Shot & Trap Interaction | ADR-0006 | Slow-shot/trap fairness, debuff stacking, immunity window |
+| Results Persistence & Leaderboard | ADR-0003 | Server-only persistence gateway, idempotent writes, leaderboard sort contract |
+| HUD, Results, and Ranking UI | ADR-0004 | Runtime UI Toolkit stack and screen/state flow |
+| Audio Feedback | ADR-0008 | Vertical Slice presentation-only cue routing from authoritative events + local UI cues |
 
 ---
 
@@ -120,6 +138,7 @@
 | Design docs started | 1 |
 | Design docs reviewed | 1 |
 | Design docs approved | 0 |
+| Systems with accepted ADR coverage | 8/8 |
 | MVP systems designed | 1/7 |
 | Vertical Slice systems designed | 0/1 |
 
@@ -128,6 +147,7 @@
 ## Next Steps
 
 - [ ] Review and approve this systems enumeration
+- [ ] Re-run `/architecture-review` so the generated traceability docs reflect ADR-0007 and ADR-0008
 - [ ] Design MVP-tier systems first (use `/design-system [system-name]`)
 - [ ] Run `/design-review` on each completed GDD
 - [ ] Create the master architecture document (`/create-architecture`)
