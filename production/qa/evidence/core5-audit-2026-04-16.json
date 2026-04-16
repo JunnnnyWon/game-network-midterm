@@ -1,0 +1,35 @@
+{
+  "core5": {
+    "start": {
+      "path": ".codex/skills/start/SKILL.md",
+      "exists": true,
+      "missing_required_strings": [],
+      "legacy_tokens": []
+    },
+    "brainstorm": {
+      "path": ".codex/skills/brainstorm/SKILL.md",
+      "exists": true,
+      "missing_required_strings": [],
+      "legacy_tokens": []
+    },
+    "setup-engine": {
+      "path": ".codex/skills/setup-engine/SKILL.md",
+      "exists": true,
+      "missing_required_strings": [],
+      "legacy_tokens": []
+    },
+    "design-system": {
+      "path": ".codex/skills/design-system/SKILL.md",
+      "exists": true,
+      "missing_required_strings": [],
+      "legacy_tokens": []
+    },
+    "create-architecture": {
+      "path": ".codex/skills/create-architecture/SKILL.md",
+      "exists": true,
+      "missing_required_strings": [],
+      "legacy_tokens": []
+    }
+  },
+  "ok": true
+}
