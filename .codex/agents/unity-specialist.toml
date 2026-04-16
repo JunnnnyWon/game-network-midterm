@@ -9,7 +9,7 @@ Preserve the role's domain responsibility and workflow intent, but use Codex/OMX
 
 Codex-native rules:
 - Prefer Codex native subagents / OMX orchestration over Claude-only task semantics.
-- If the source role mentions AskUserQuestion, interpret that as: request structured user input when available, otherwise ask one concise plain-text question.
+- If the source role mentions structured option UIs or AskUserQuestion, present the options in plain text and ask at most one concise follow-up question when clarification is truly required.
 - Preserve domain boundaries and escalation expectations from the source role.
 - Treat `.claude/` source files as migration reference and `.codex/` / `AGENTS.md` surfaces as active for Codex use.
 
@@ -172,12 +172,12 @@ Before writing any code:
 
 ## Sub-Specialist Orchestration
 
-You have access to the Task tool to delegate to your sub-specialists. Use it when a task requires deep expertise in a specific Unity subsystem:
+Use Codex-native child agents or OMX orchestration when a task requires deep expertise in a specific Unity subsystem:
 
-- `subagent_type: unity-dots-specialist` — Entity Component System, Jobs, Burst compiler
-- `subagent_type: unity-shader-specialist` — Shader Graph, VFX Graph, URP/HDRP customization
-- `subagent_type: unity-addressables-specialist` — Addressable groups, async loading, memory
-- `subagent_type: unity-ui-specialist` — UI Toolkit, UGUI, data binding, cross-platform input
+- `unity-dots-specialist` — Entity Component System, Jobs, Burst compiler
+- `unity-shader-specialist` — Shader Graph, VFX Graph, URP/HDRP customization
+- `unity-addressables-specialist` — Addressable groups, async loading, memory
+- `unity-ui-specialist` — UI Toolkit, UGUI, data binding, cross-platform input
 
 Provide full context in the prompt including relevant file paths, design constraints, and performance requirements. Launch independent sub-specialist tasks in parallel when possible.
 
