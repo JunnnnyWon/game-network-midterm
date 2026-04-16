@@ -12,8 +12,8 @@ A clear description of what the bug is.
 
 ## Steps to Reproduce
 
-1. Open Claude Code in a project using this template
-2. Run `/<skill>` or trigger `<agent>`
+1. Open Claude Code or Codex/OMX in a project using this template
+2. Run the relevant skill/workflow (legacy `/<skill>` alias or Codex skill name) or trigger the affected agent
 3. ...
 4. See error
 
@@ -29,7 +29,8 @@ What actually happened. Include any error messages or unexpected output.
 
 - **OS**: (e.g., Windows 10, macOS 14, Ubuntu 24.04)
 - **Shell**: (e.g., Git Bash, zsh, bash)
-- **Claude Code version**: (run `claude --version`)
+- **Runtime**: Claude Code / Codex / OMX
+- **Claude Code version**: (run `claude --version`, if applicable)
 - **Node.js version**: (run `node --version`)
 - **jq installed?**: Yes / No
 - **Python installed?**: Yes / No

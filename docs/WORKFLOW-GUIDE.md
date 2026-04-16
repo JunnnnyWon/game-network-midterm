@@ -1,10 +1,15 @@
 # Claude Code Game Studios -- Complete Workflow Guide
 
+> **Codex / OMX note:** the original workflow names still describe the studio
+> pipeline, but Codex users should treat `AGENTS.md` and `.codex/` as the active
+> runtime surfaces. Slash-command names in this guide can be read as skill /
+> workflow names or legacy aliases.
+
 > **How to go from zero to a shipped game using the Agent Architecture.**
 >
 > This guide walks you through every phase of game development using the
 > 48-agent system, 68 slash commands, and 12 automated hooks. It assumes you
-> have Claude Code installed and are working from the project root.
+> have Claude Code or Codex/OMX available and are working from the project root.
 >
 > The pipeline has 7 phases. Each phase has a formal gate (`/gate-check`)
 > that must pass before you advance. The authoritative phase sequence is
@@ -35,7 +40,7 @@
 
 Before you start, make sure you have:
 
-- **Claude Code** installed and working
+- **Claude Code** or **Codex / OMX** installed and working
 - **Git** with Git Bash (Windows) or standard terminal (Mac/Linux)
 - **jq** (optional but recommended -- hooks fall back to `grep` if missing)
 - **Python 3** (optional -- some hooks use it for JSON validation)
@@ -47,12 +52,12 @@ git clone <repo-url> my-game
 cd my-game
 ```
 
-### Step 2: Run /start
+### Step 2: Run `start` (or legacy `/start`)
 
 If this is your first session:
 
 ```
-/start
+start
 ```
 
 This guided onboarding asks where you are and routes you to the right phase:
@@ -66,8 +71,8 @@ This guided onboarding asks where you are and routes you to the right phase:
 
 ### Step 3: Verify Hooks Are Working
 
-Start a new Claude Code session. You should see output from the
-`session-start.sh` hook:
+If you're using the original Claude-first flow, start a new Claude session and
+you should see output from the `session-start.sh` hook:
 
 ```
 === Claude Code Game Studios -- Session Context ===
@@ -85,7 +90,7 @@ make sure the hook paths are correct for your OS.
 At any point, run:
 
 ```
-/help
+help
 ```
 
 This reads your current phase from `production/stage.txt`, checks which

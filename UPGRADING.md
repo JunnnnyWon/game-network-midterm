@@ -1,5 +1,10 @@
 # Upgrading Claude Code Game Studios
 
+> **Codex / OMX note:** this guide still documents the original template's
+> version-to-version upgrade history. For the Codex-native port surfaces and
+> migration mapping, start with `docs/CODEX-MIGRATION.md`, `AGENTS.md`, and
+> `.codex/docs/runtime-contract.md`.
+
 This guide covers upgrading your existing game project repo from one version
 of the template to the next.
 

@@ -19,9 +19,9 @@ Brief description of what this PR does.
 
 ## Checklist
 
-- [ ] I've tested this in a Claude Code session
+- [ ] I've tested this in the intended runtime (Claude or Codex/OMX)
 - [ ] New agents include the Collaboration Protocol section
-- [ ] New skills use the subdirectory format (`.claude/skills/<name>/SKILL.md`)
+- [ ] New skills use the correct runtime surface (`.claude/skills/<name>/SKILL.md` for Claude source, `.codex/skills/<name>/SKILL.md` for Codex)
 - [ ] Reference docs are updated (agent-roster, skills-reference, hooks-reference, rules-reference)
 - [ ] Hooks use `grep -E` (POSIX) and fail gracefully without jq/python
 - [ ] No hardcoded paths or platform-specific assumptions

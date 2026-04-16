@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">Claude Code Game Studios</h1>
   <p align="center">
-    Turn a single Claude Code session into a full game development studio.
+    Turn a single Claude Code or Codex/OMX session into a full game development studio.
     <br />
     49 agents. 72 skills. One coordinated AI team.
   </p>
@@ -14,9 +14,37 @@
   <a href=".claude/hooks"><img src="https://img.shields.io/badge/hooks-12-orange" alt="12 Hooks"></a>
   <a href=".claude/rules"><img src="https://img.shields.io/badge/rules-11-red" alt="11 Rules"></a>
   <a href="https://docs.anthropic.com/en/docs/claude-code"><img src="https://img.shields.io/badge/built%20for-Claude%20Code-f5f5f5?logo=anthropic" alt="Built for Claude Code"></a>
+  <img src="https://img.shields.io/badge/codex%20port-AGENTS%20%2B%20.codex-412991" alt="Codex port available">
   <a href="https://www.buymeacoffee.com/donchitos3"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20this%20project-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
   <a href="https://github.com/sponsors/Donchitos"><img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?logo=githubsponsors&logoColor=white" alt="GitHub Sponsors"></a>
 </p>
+
+---
+
+## Codex / OMX Support
+
+This repository now includes a **Codex-native porting layer** alongside the original Claude-first materials.
+
+### Active runtime surfaces in Codex
+- `AGENTS.md`
+- `.codex/skills/`
+- `.codex/agents/`
+- `.codex/docs/runtime-contract.md`
+
+### Porting stance
+- Preserve **workflow parity** first
+- Preserve **command / structure parity** second
+- Allow **Codex-required changes** when necessary for correct use
+
+### Release-gate skills for the Codex port
+- `start`
+- `brainstorm`
+- `setup-engine`
+- `design-system`
+- `create-architecture`
+
+The original `.claude/` directory is still kept as upstream/source reference during the migration.
+See [`docs/CODEX-MIGRATION.md`](docs/CODEX-MIGRATION.md) for the Codex-side mapping summary.
 
 ---
 
@@ -24,7 +52,7 @@
 
 Building a game solo with AI is powerful — but a single chat session has no structure. No one stops you from hardcoding magic numbers, skipping design docs, or writing spaghetti code. There's no QA pass, no design review, no one asking "does this actually fit the game's vision?"
 
-**Claude Code Game Studios** solves this by giving your AI session the structure of a real studio. Instead of one general-purpose assistant, you get 49 specialized agents organized into a studio hierarchy — directors who guard the vision, department leads who own their domains, and specialists who do the hands-on work. Each agent has defined responsibilities, escalation paths, and quality gates.
+**Claude Code Game Studios** — now with a Codex-native porting layer — solves this by giving your AI session the structure of a real studio. Instead of one general-purpose assistant, you get 49 specialized agents organized into a studio hierarchy — directors who guard the vision, department leads who own their domains, and specialists who do the hands-on work. Each agent has defined responsibilities, escalation paths, and quality gates.
 
 The result: you still make every decision, but now you have a team that asks the right questions, catches mistakes early, and keeps your project organized from first brainstorm to launch.
 
@@ -34,7 +62,7 @@ The result: you still make every decision, but now you have a team that asks the
 
 - [What's Included](#whats-included)
 - [Studio Hierarchy](#studio-hierarchy)
-- [Slash Commands](#slash-commands)
+- [Skills / Legacy Slash Commands](#skills--legacy-slash-commands)
 - [Getting Started](#getting-started)
 - [Upgrading](#upgrading)
 - [Project Structure](#project-structure)
@@ -92,9 +120,11 @@ The template includes agent sets for all three major engines. Use the set that m
 | **Unity** | `unity-specialist` | DOTS/ECS, Shaders/VFX, Addressables, UI Toolkit |
 | **Unreal Engine 5** | `unreal-specialist` | GAS, Blueprints, Replication, UMG/CommonUI |
 
-## Slash Commands
+## Skills / Legacy Slash Commands
 
-Type `/` in Claude Code to access all 72 skills:
+The original template exposed these as Claude slash commands. In the Codex port,
+use the same names as **skills/workflows**; treat the slash-prefixed forms below
+as legacy aliases/reference names:
 
 **Onboarding & Navigation**
 `/start` `/help` `/project-stage-detect` `/setup-engine` `/adopt`
@@ -138,6 +168,7 @@ Type `/` in Claude Code to access all 72 skills:
 
 - [Git](https://git-scm.com/)
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
+- Codex / OMX (for the Codex-native ported surface)
 - **Recommended**: [jq](https://jqlang.github.io/jq/) (for hook validation) and Python 3 (for JSON validation)
 
 All hooks fail gracefully if optional tools are missing — nothing breaks, you just lose validation.
@@ -145,23 +176,46 @@ All hooks fail gracefully if optional tools are missing — nothing breaks, you 
 ### Setup
 
 1. **Clone or use as template**:
+
    ```bash
    git clone https://github.com/Donchitos/Claude-Code-Game-Studios.git my-game
    cd my-game
    ```
 
-2. **Open Claude Code** and start a session:
+2. **Choose your runtime**:
+
+   **Claude-first flow**
+
    ```bash
    claude
    ```
 
-3. **Run `/start`** — the system asks where you are (no idea, vague concept,
+   **Codex / OMX flow**
+
+   Open Codex in the repo root and treat `AGENTS.md` + `.codex/` as the active
+   runtime surfaces.
+
+If you want to use the Codex-native ported surface instead of the original Claude-first flow:
+
+1. Open Codex in the repo root.
+2. Treat `AGENTS.md` and `.codex/` as the active runtime surfaces.
+3. Start with the `start` skill (or ask Codex to use the `start` workflow).
+4. Use the release-gate skills first while the broader migration continues:
+   - `start`
+   - `brainstorm`
+   - `setup-engine`
+   - `design-system`
+   - `create-architecture`
+
+The original `.claude/` layer remains available as migration reference, but it is not the active runtime contract for Codex.
+
+3. **Run `start` (or legacy `/start`)** — the system asks where you are (no idea, vague concept,
    clear design, existing work) and guides you to the right workflow. No assumptions.
 
    Or jump directly to a specific skill if you already know what you need:
-   - `/brainstorm` — explore game ideas from scratch
-   - `/setup-engine godot 4.6` — configure your engine if you already know
-   - `/project-stage-detect` — analyze an existing project
+   - `brainstorm` — explore game ideas from scratch
+   - `setup-engine godot 4.6` — configure your engine if you already know
+   - `project-stage-detect` — analyze an existing project
 
 ## Upgrading
 
@@ -172,7 +226,9 @@ versions, and which files are safe to overwrite vs. which need a manual merge.
 ## Project Structure
 
 ```
-CLAUDE.md                           # Master configuration
+AGENTS.md                           # Codex-native master configuration
+CLAUDE.md                           # Original Claude-first master configuration (source reference)
+.codex/                             # Codex-native skills, agents, and runtime docs
 .claude/
   settings.json                     # Hooks, permissions, safety rules
   agents/                           # 49 agent definitions (markdown + YAML frontmatter)

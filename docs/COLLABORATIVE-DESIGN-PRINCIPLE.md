@@ -680,9 +680,12 @@ WHEN implementing:
 
 This principle has been fully embedded across the project:
 
+- **AGENTS.md** — Codex-native collaboration contract added
+- **.codex/skills/** — Core Codex-native workflow layer added
+- **.codex/agents/** — Codex-native agent ports added
 - **CLAUDE.md** — Collaboration protocol section added
 - **All 48 agent definitions** — Updated to enforce question-asking and approval
 - **All skills** — Updated to require approval before writing
 - **WORKFLOW-GUIDE.md** — Rewritten with collaborative examples
 - **README.md** — Clarifies collaborative (not autonomous) design
-- **AskUserQuestion tool** — Integrated into 16 skills for structured option UI
+- **AskUserQuestion tool** — Legacy Claude structured option UI remains documented; Codex-native flows now use structured input when available or one concise question at a time

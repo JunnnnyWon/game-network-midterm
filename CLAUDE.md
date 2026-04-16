@@ -1,7 +1,13 @@
-# Claude Code Game Studios -- Game Studio Agent Architecture
+# Claude Code Game Studios -- Legacy Claude Runtime Reference
 
-Indie game development managed through 48 coordinated Claude Code subagents.
-Each agent owns a specific domain, enforcing separation of concerns and quality.
+> **Codex / OMX users:** the active runtime contract for the ported version now
+> lives in `AGENTS.md` and `.codex/`. This file is kept as a legacy Claude-first
+> reference and source artifact during the migration.
+
+Indie game development managed through coordinated specialist agents. The
+original template targeted Claude Code directly; the Codex-native layer now
+reuses the same studio concepts through `AGENTS.md`, `.codex/skills/`, and
+`.codex/agents/`.
 
 ## Technology Stack
 
@@ -43,7 +49,8 @@ Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
 See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
 > **First session?** If the project has no engine configured and no game concept,
-> run `/start` to begin the guided onboarding flow.
+> run `start` in the Codex layer (or legacy `/start` in Claude) to begin the
+> guided onboarding flow.
 
 ## Coding Standards
 
