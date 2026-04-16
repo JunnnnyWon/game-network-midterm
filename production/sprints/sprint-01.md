@@ -1,6 +1,7 @@
 # Sprint 01
 
-Goal: Start the first playable slice by executing the network/session spike story.
+Goal: Continue the first playable slice by moving from the session spike into readable in-match HUD feedback.
 
 Stories:
 - production/epics/epic-first-playable-network-core/story-001-network-session-spike.md
+- production/epics/epic-first-playable-network-core/story-002-authoritative-hud-feedback.md
