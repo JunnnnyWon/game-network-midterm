@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-04-16"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -43,7 +43,64 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: competitive_match_state
+    status: active
+    owner_system: match-lifecycle-room-state
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    interface: "RoomSnapshotDto / MatchState (client read-only, server authoritative)"
+    write_access: server-only
+    referenced_by:
+      - docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+    revised: ""
+  - state: room_phase
+    status: active
+    owner_system: match-lifecycle-room-state
+    adr: docs/architecture/adr-0002-match-state-machine-and-event-ordering.md
+    interface: "MatchState enum broadcast in RoomSnapshotDto (client read-only)"
+    write_access: server-only
+    referenced_by:
+      - docs/architecture/adr-0002-match-state-machine-and-event-ordering.md
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
+  - state: player_stats_persistence
+    status: active
+    owner_system: results-persistence-leaderboard
+    adr: docs/architecture/adr-0003-persistence-boundary-and-leaderboard-formula.md
+    interface: "LeaderboardRow query results from server gateway (client read-only)"
+    write_access: server-only
+    referenced_by:
+      - docs/architecture/adr-0003-persistence-boundary-and-leaderboard-formula.md
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
+  - state: battery_spawn_schedule
+    status: active
+    owner_system: arena-battery-economy-scoring
+    adr: docs/architecture/adr-0005-battery-spawn-and-score-pacing-model.md
+    interface: "BatteryPacingConfig + active battery snapshot (client read-only)"
+    write_access: server-only
+    referenced_by:
+      - docs/architecture/adr-0005-battery-spawn-and-score-pacing-model.md
+    added: 2026-04-16
+    revised: ""
+
+  - state: movement_debuff_state
+    status: active
+    owner_system: slow-shot-trap-interaction
+    adr: docs/architecture/adr-0006-slow-shot-and-trap-fairness-rules.md
+    interface: "SlowEffectState emitted in snapshot/event payloads (client read-only)"
+    write_access: server-only
+    referenced_by:
+      - docs/architecture/adr-0006-slow-shot-and-trap-fairness-rules.md
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
 
 # Example:
 #
@@ -71,7 +128,49 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: gameplay_network_transport
+    status: active
+    pattern: rpc
+    producer: unity-client
+    consumers:
+      - network-session-transport
+      - match-lifecycle-room-state
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    signal_signature: "length-prefixed TCP messages carrying connect/join/ready/input/snapshot/event DTOs"
+    referenced_by:
+      - docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+    revised: ""
+  - contract: match_state_transition_contract
+    status: active
+    pattern: direct_call
+    producer: match-lifecycle-room-state
+    consumers:
+      - results-persistence-leaderboard
+      - hud-results-and-ranking-ui
+    adr: docs/architecture/adr-0002-match-state-machine-and-event-ordering.md
+    signal_signature: "server-owned MatchState and MatchEndReason transitions"
+    referenced_by:
+      - docs/architecture/adr-0002-match-state-machine-and-event-ordering.md
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
+  - contract: leaderboard_query_response
+    status: active
+    pattern: direct_call
+    producer: results-persistence-leaderboard
+    consumers:
+      - hud-results-and-ranking-ui
+    adr: docs/architecture/adr-0003-persistence-boundary-and-leaderboard-formula.md
+    signal_signature: "QueryTopAsync(limit) -> IReadOnlyList<LeaderboardRow>"
+    referenced_by:
+      - docs/architecture/adr-0003-persistence-boundary-and-leaderboard-formula.md
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
 
 # Example:
 #
@@ -131,7 +230,38 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: multiplayer_transport
+    status: active
+    api: custom_length_prefixed_tcp_protocol
+    not: Unity Netcode for GameObjects
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    reason: "The assignment requires a distinct C# server and MySQL boundary, so a custom external protocol keeps authority and persistence outside Unity."
+    referenced_by:
+      - docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+    revised: ""
+  - purpose: client_input_api
+    status: active
+    api: Unity Input System package
+    not: legacy Input Manager
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    reason: "Unity 6.3 deprecates legacy input APIs and the client transport depends on callback/action-map based input capture."
+    referenced_by:
+      - docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+    revised: ""
+  - purpose: runtime_ui_stack
+    status: active
+    api: Unity UI Toolkit runtime UI
+    not: UGUI (Canvas)
+    adr: docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    reason: "Unity 6.3 recommends UI Toolkit for new runtime UI and the project needs a simple single-document screen flow."
+    referenced_by:
+      - docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+    revised: ""
+
 
 # Example:
 #
@@ -157,7 +287,48 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: direct_client_database_access
+    status: active
+    description: "Unity clients must never connect to MySQL directly. All persistence and leaderboard access goes through the authoritative server gateway."
+    why: "Direct client DB access exposes credentials, bypasses authority checks, and breaks idempotent match-result handling."
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+
+  - pattern: client_authoritative_competitive_state
+    status: active
+    description: "Clients must never authoritatively decide score, battery pickup success, trap resolution, slow-hit outcomes, or match victory."
+    why: "Client-owned competitive outcomes create cheating and desync risk in a multiplayer assignment project."
+    adr: docs/architecture/adr-0001-network-authority-and-transport-strategy.md
+    added: 2026-04-16
+  - pattern: blocking_match_end_on_db_write
+    status: active
+    description: "The game must never wait on a MySQL write before showing match results or returning room state to the client."
+    why: "Infrastructure latency must not stall gameplay conclusion or presentation flow."
+    adr: docs/architecture/adr-0003-persistence-boundary-and-leaderboard-formula.md
+    added: 2026-04-16
+
+  - pattern: ui_derived_match_outcome
+    status: active
+    description: "Runtime UI must never infer winner, timeout reason, or persistence success from local assumptions; it renders only server-provided state."
+    why: "Derived UI outcomes create mismatch between what players see and what the authoritative server decided."
+    adr: docs/architecture/adr-0004-runtime-ui-stack-and-screen-flow.md
+    added: 2026-04-16
+
+  - pattern: battery_spawn_same_point_loop
+    status: active
+    description: "Battery respawns must not repeatedly reuse the same spawn point when valid alternatives exist."
+    why: "Repeated identical spawns encourage camping and undermine route-based competition."
+    adr: docs/architecture/adr-0005-battery-spawn-and-score-pacing-model.md
+    added: 2026-04-16
+
+  - pattern: unbounded_crowd_control_stacking
+    status: active
+    description: "Slow shot and trap effects must not stack multiplicatively or refresh indefinitely to keep a player permanently slowed."
+    why: "Unbounded crowd control destroys fairness and violates the intended short, readable competitive loop."
+    adr: docs/architecture/adr-0006-slow-shot-and-trap-fairness-rules.md
+    added: 2026-04-16
+
 
 # Example:
 #

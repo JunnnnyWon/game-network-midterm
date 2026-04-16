@@ -2,56 +2,31 @@
 
 | Field | Value |
 |-------|-------|
-| **Engine Version** | Unity 6.3 LTS |
-| **Release Date** | December 2025 |
-| **Project Pinned** | 2026-02-13 |
-| **Last Docs Verified** | 2026-02-13 |
+| **Engine Version** | Unity 6.3 LTS (6000.3.10f1) |
+| **Release Track** | Official Unity 6.3 LTS editor build |
+| **Project Pinned** | 2026-04-16 |
+| **Last Docs Verified** | 2026-04-16 |
 | **LLM Knowledge Cutoff** | May 2025 |
+| **Risk Level** | HIGH — exact project version is post-cutoff and should be checked against official docs |
 
 ## Knowledge Gap Warning
 
-The LLM's training data likely covers Unity up to ~2022 LTS (2022.3). The entire
-Unity 6 release series (formerly Unity 2023 Tech Stream) introduced significant
-changes that the model does NOT know about. Always cross-reference this directory
-before suggesting Unity API calls.
+Unity 6.3 LTS, and especially the exact editor build `6000.3.10f1`, is beyond the model's reliable built-in knowledge. For unstable or version-sensitive Unity APIs, check official
+Unity 6.3 documentation and release notes before implementation decisions.
 
-## Post-Cutoff Version Timeline
+## Version Pin
 
-| Version | Release | Risk Level | Key Theme |
-|---------|---------|------------|-----------|
-| 6.0 | Oct 2024 | HIGH | Unity 6 rebrand, new rendering features, Entities 1.3, DOTS improvements |
-| 6.1 | Nov 2024 | MEDIUM | Bug fixes, stability improvements |
-| 6.2 | Dec 2024 | MEDIUM | Performance optimizations, new input system improvements |
-| 6.3 LTS | Dec 2025 | HIGH | First LTS since 6.0, production-ready DOTS, enhanced graphics features |
+This project is pinned to **Unity 6.3 LTS (6000.3.10f1)**. Treat this as the source of truth
+for engine-specific recommendations, package compatibility checks, and migration assumptions.
 
-## Major Changes from 2022 LTS to Unity 6.3 LTS
+## Verified Official Sources
 
-### Breaking Changes
-- **Entities/DOTS**: Major API overhaul in Entities 1.0+, complete redesign of ECS patterns
-- **Input System**: Legacy Input Manager deprecated, new Input System is default
-- **Rendering**: URP/HDRP significant upgrades, SRP Batcher improvements
-- **Addressables**: Asset management workflow changes
-- **Scripting**: C# 9 support, new API patterns
+- Unity 6.3 LTS release stream: https://unity.com/releases/unity-6
+- Unity 6.3.10f1 release notes / what's new: https://unity.com/releases/editor/whats-new/6000.3.10f1
+- Unity LTS support policy: https://unity.com/releases/lts
 
-### New Features (Post-Cutoff)
-- **DOTS**: Production-ready Entity Component System (Entities 1.3+)
-- **Graphics**: Enhanced URP/HDRP pipelines, GPU Resident Drawer
-- **Multiplayer**: Netcode for GameObjects improvements
-- **UI Toolkit**: Production-ready for runtime UI (replaces UGUI for new projects)
-- **Async Asset Loading**: Improved Addressables performance
-- **Web**: WebGPU support
+## Practical Guidance
 
-### Deprecated Systems
-- **Legacy Input Manager**: Use new Input System package
-- **Legacy Particle System**: Use Visual Effect Graph
-- **UGUI**: Still supported, but UI Toolkit recommended for new projects
-- **Old ECS (GameObjectEntity)**: Replaced by modern DOTS/Entities
-
-## Verified Sources
-
-- Official docs: https://docs.unity3d.com/6000.0/Documentation/Manual/index.html
-- Unity 6 release: https://unity.com/releases/unity-6
-- Unity 6.3 LTS announcement: https://unity.com/blog/unity-6-3-lts-is-now-available
-- Migration guide: https://docs.unity3d.com/6000.0/Documentation/Manual/upgrade-guides.html
-- Unity 6 support: https://unity.com/releases/unity-6/support
-- C# API reference: https://docs.unity3d.com/6000.0/Documentation/ScriptReference/index.html
+- Prefer **URP + 2D Renderer** for this top-down 2D project unless a later decision explicitly changes pipelines.
+- Prefer **Unity Test Framework** for EditMode/PlayMode coverage.
+- Treat networking, input, and UI package guidance as version-sensitive areas worth re-checking before implementation.

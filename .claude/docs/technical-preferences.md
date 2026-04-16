@@ -5,31 +5,31 @@
 
 ## Engine & Language
 
-- **Engine**: [TO BE CONFIGURED — run /setup-engine]
-- **Language**: [TO BE CONFIGURED]
-- **Rendering**: [TO BE CONFIGURED]
-- **Physics**: [TO BE CONFIGURED]
+- **Engine**: Unity 6.3 LTS (6000.3.10f1)
+- **Language**: C#
+- **Rendering**: Universal Render Pipeline (URP) with 2D Renderer
+- **Physics**: Unity 2D Physics (Physics2D)
 
 ## Input & Platform
 
 <!-- Written by /setup-engine. Read by /ux-design, /ux-review, /test-setup, /team-ui, and /dev-story -->
 <!-- to scope interaction specs, test helpers, and implementation to the correct input methods. -->
 
-- **Target Platforms**: [TO BE CONFIGURED — e.g., PC, Console, Mobile, Web]
-- **Input Methods**: [TO BE CONFIGURED — e.g., Keyboard/Mouse, Gamepad, Touch, Mixed]
-- **Primary Input**: [TO BE CONFIGURED — the dominant input for this game]
-- **Gamepad Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Touch Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Platform Notes**: [TO BE CONFIGURED — any platform-specific UX constraints]
+- **Target Platforms**: PC
+- **Input Methods**: Keyboard/Mouse
+- **Primary Input**: Keyboard/Mouse
+- **Gamepad Support**: None
+- **Touch Support**: None
+- **Platform Notes**: Competitive top-down UI must prioritize readability of score, timer, trap state, and ranking data on a single PC display.
 
 ## Naming Conventions
 
-- **Classes**: [TO BE CONFIGURED]
-- **Variables**: [TO BE CONFIGURED]
-- **Signals/Events**: [TO BE CONFIGURED]
-- **Files**: [TO BE CONFIGURED]
-- **Scenes/Prefabs**: [TO BE CONFIGURED]
-- **Constants**: [TO BE CONFIGURED]
+- **Classes**: PascalCase (e.g., `PlayerController`)
+- **Variables**: Public properties/fields PascalCase; private fields `_camelCase`; local variables `camelCase`
+- **Signals/Events**: PascalCase for event types and `OnPascalCase` for event methods
+- **Files**: PascalCase matching primary class name (e.g., `PlayerController.cs`)
+- **Scenes/Prefabs**: PascalCase (e.g., `MainArena`, `BatteryPickup`, `PlayerAvatar`)
+- **Constants**: PascalCase for public constants or `UPPER_SNAKE_CASE` for shared static readonly values
 
 ## Performance Budgets
 
@@ -40,8 +40,8 @@
 
 ## Testing
 
-- **Framework**: [TO BE CONFIGURED]
-- **Minimum Coverage**: [TO BE CONFIGURED]
+- **Framework**: Unity Test Framework (NUnit + PlayMode/EditMode tests)
+- **Minimum Coverage**: Moderate — cover core gameplay logic, match-state rules, and major networking flows
 - **Required Tests**: Balance formulas, gameplay systems, networking (if applicable)
 
 ## Forbidden Patterns
@@ -65,12 +65,12 @@
 <!-- Read by /code-review, /architecture-decision, /architecture-review, and team skills -->
 <!-- to know which specialist to spawn for engine-specific validation. -->
 
-- **Primary**: [TO BE CONFIGURED — run /setup-engine]
-- **Language/Code Specialist**: [TO BE CONFIGURED]
-- **Shader Specialist**: [TO BE CONFIGURED]
-- **UI Specialist**: [TO BE CONFIGURED]
-- **Additional Specialists**: [TO BE CONFIGURED]
-- **Routing Notes**: [TO BE CONFIGURED]
+- **Primary**: unity-specialist
+- **Language/Code Specialist**: unity-specialist
+- **Shader Specialist**: unity-shader-specialist
+- **UI Specialist**: unity-ui-specialist
+- **Additional Specialists**: unity-dots-specialist, unity-addressables-specialist
+- **Routing Notes**: Use `unity-specialist` for general gameplay, scene, and architecture work; `unity-ui-specialist` for HUD/leaderboard UI; `unity-shader-specialist` for URP/material issues; `unity-addressables-specialist` only if asset loading grows beyond basic assignment scope.
 
 ### File Extension Routing
 
@@ -79,9 +79,9 @@
 
 | File Extension / Type | Specialist to Spawn |
 |-----------------------|---------------------|
-| Game code (primary language) | [TO BE CONFIGURED] |
-| Shader / material files | [TO BE CONFIGURED] |
-| UI / screen files | [TO BE CONFIGURED] |
-| Scene / prefab / level files | [TO BE CONFIGURED] |
-| Native extension / plugin files | [TO BE CONFIGURED] |
+| Game code (primary language) | unity-specialist |
+| Shader / material files | unity-shader-specialist |
+| UI / screen files | unity-ui-specialist |
+| Scene / prefab / level files | unity-specialist |
+| Native extension / plugin files | unity-specialist |
 | General architecture review | Primary |

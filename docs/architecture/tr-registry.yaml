@@ -25,32 +25,160 @@
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
 version: 1
-last_updated: ""
+last_updated: "2026-04-16"
 
-requirements: []
-
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+requirements:
+  - id: TR-concept-001
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "First player to 10 points wins immediately"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-002
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "If timer expires, highest score wins"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-003
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "MVP supports 2 players; architecture should scale to 4"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-004
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Players move in a top-down 2D arena and collect batteries"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-005
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Players can fire a slow-shot skill"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-006
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Arena contains map traps that affect routing"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-007
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Server authoritatively resolves score, effects, and victory"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-008
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Match results are stored in MySQL"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-009
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Players can query and view leaderboard/ranking data"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-010
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Match state must remain instantly readable on a single PC display"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-011
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Rounds should be short, repeatable, and demo-friendly"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-012
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Game is played with keyboard and mouse on PC"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-013
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Competitive rules must avoid oppressive or unclear disruption"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-concept-014
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Network and database outcomes must be visible to players"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-001
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Foundation transport system exists and anchors downstream modules"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-002
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Core lifecycle system exists and depends on transport"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-003
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Dedicated player-control/input architecture exists for the Unity client"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-004
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Dedicated battery/scoring architecture exists"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-005
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Dedicated disruption-effect architecture exists"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-006
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Dedicated persistence/leaderboard architecture exists"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-007
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Dedicated runtime UI architecture exists"
+    created: 2026-04-16
+    revised: ""
+    status: active
+  - id: TR-systems-008
+    system: systems
+    gdd: design/gdd/systems-index.md
+    requirement: "Audio system architecture exists"
+    created: 2026-04-16
+    revised: ""
+    status: active
