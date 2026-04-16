@@ -19,7 +19,7 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| 1 | Match Lifecycle & Room State | Core | MVP | Not Started | — | Network Session & Transport |
+| 1 | Match Lifecycle & Room State | Core | MVP | Draft | design/gdd/match-lifecycle-and-room-state.md | Network Session & Transport |
 | 2 | Network Session & Transport | Foundation | MVP | Draft | design/gdd/network-session-and-transport.md | — |
 | 3 | Player Controller & Input | Core | MVP | Not Started | — | Match Lifecycle & Room State |
 | 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Not Started | — | Match Lifecycle & Room State, Player Controller & Input |
@@ -135,11 +135,11 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 8 |
-| Design docs started | 2 |
+| Design docs started | 3 |
 | Design docs reviewed | 1 |
 | Design docs approved | 0 |
 | Systems with accepted ADR coverage | 8/8 |
-| MVP systems designed | 2/7 |
+| MVP systems designed | 3/7 |
 | Vertical Slice systems designed | 0/1 |
 
 ---
