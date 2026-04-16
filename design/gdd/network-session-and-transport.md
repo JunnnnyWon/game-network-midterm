@@ -1,247 +1,221 @@
-# System GDD: Network Session & Transport
+# Network Session & Transport
 
 > **Status**: Draft
+> **Author**: Codex
 > **Last Updated**: 2026-04-16
-> **Category**: Foundation
-> **Priority**: MVP
-> **Primary ADRs**: `docs/architecture/adr-0001-network-authority-and-transport-strategy.md`, `docs/architecture/adr-0002-match-state-machine-and-event-ordering.md`, `docs/architecture/adr-0007-player-controller-and-input-runtime-contract.md`
-> **Source Requirements**: `TR-concept-003`, `TR-concept-007`, `TR-concept-012`, `TR-concept-014`, `TR-systems-001`
+> **Last Verified**: 2026-04-16
+> **Implements Pillar**: Pillar 3 — Networking and Results Must Be Visible
 
----
+## Summary
 
-## 1. Overview
+`Network Session & Transport` is the foundation system that connects the Unity client to the external authoritative C# server, keeps both players in the same room, and moves all shared gameplay/UI intents and snapshots across a deterministic protocol. It exists so Battery Rush Arena can visibly demonstrate real client-server play without letting the client invent score, victory, or room state.
 
-`Network Session & Transport` is the foundation system that lets the Unity client join a shared room, send only player/UI intents to a dedicated authoritative C# server, and receive the snapshots/events that every downstream system depends on. Its job is not to decide gameplay outcomes; its job is to guarantee that room membership, input delivery, liveness, and protocol compatibility are deterministic enough for the server to stay authoritative.
+> **Quick reference** — Layer: `Foundation` · Priority: `MVP` · Key deps: `None`
 
-### In Scope
-- protocol-version handshake before room join
-- length-prefixed TCP framing and DTO serialization
-- client session creation, room join/leave, and stale-session cleanup
-- tick-tagged input frame delivery from the local player
-- shared UI-intent delivery for `JoinRoom`, `Ready`, `Rematch`, and `RefreshLeaderboard`
-- authoritative room snapshots and server event delivery back to clients
-- heartbeat / keepalive behavior and duplicate-frame rejection
+## Overview
 
-### Out of Scope
-- room-state progression rules after a message is accepted (`Lobby`, `Countdown`, `Active`, `Ended`, `Saving`, `ResultsReady`)
-- gameplay simulation, battery scoring, trap resolution, or victory logic
-- MySQL persistence or leaderboard ranking formulas
-- HUD/audio presentation logic beyond carrying authoritative payloads to those systems
+This system covers how a player enters the multiplayer flow at all: connecting from the Unity client, joining or creating a room, staying connected through heartbeat traffic, and receiving authoritative room and gameplay snapshots from the server. The player should never need to understand protocol details, but they should feel that room join, countdown start, match play, disconnect handling, and results transitions are fast, clear, and fair.
 
-### Design Goal
-The player should feel that the match starts quickly, movement feedback is responsive, and all competitive outcomes are trustworthy because the server is always the single source of truth.
+## Player Fantasy
 
----
+The player should feel that the arena is a real synchronized space, not a fake local simulation. Joining a room should feel immediate and trustworthy, inputs should register quickly, and shared match events should appear as one consistent truth. The fantasy is: “I entered a real competitive training session, and the system is tracking both players honestly.”
 
-## 2. Player Fantasy
+## Detailed Rules
 
-The transport layer supports the fantasy of entering a clean sci-fi training arena that “just works.” From the player perspective:
-- joining a room should feel immediate and dependable, not like a fragile lab demo
-- the other player should appear present in the same shared space with clear authoritative updates
-- local movement should feel responsive enough to support route-racing and slow-shot timing
-- disconnects, room failures, and mismatched builds should fail clearly instead of producing hidden desync
+### Core Rules
 
-From the class-demo perspective, this system should make the client/server boundary visible: the Unity client shows responsive input and readable room state, while the server demonstrably owns match truth.
+1. **Client/server shape**
+   - The Unity application is always a thin client.
+   - The dedicated external C# server is always the authority for room membership, match state, score, pickups, debuffs, and victory.
+   - The Unity client may only send intents and render authoritative responses.
 
----
+2. **Connection flow**
+   - The player enters a player name locally, then chooses create room or join room.
+   - The client opens a TCP connection to the server and performs a protocol-version handshake before room entry.
+   - If the protocol version is incompatible, the player is rejected before entering the lobby.
+   - After a successful handshake, the client submits either:
+     - `CreateRoom` intent, or
+     - `JoinRoom(roomCode)` intent.
 
-## 3. Detailed Rules
+3. **Room membership rules**
+   - MVP supports exactly **2 active players per room**.
+   - A room enters ready-to-start behavior only when two connected players are present.
+   - Room creation returns a room code that can be shared locally during the class demo.
+   - A late third player cannot join an already full MVP room.
 
-### 3.1 Authority Boundary
-- The Unity client may send **intents only**.
-- The dedicated external C# server owns room membership, match state, score, battery availability, trap outcomes, slow-shot outcomes, disconnect results, and persistence payload creation.
-- The Unity client must never authoritatively compute score, pickup success, trap resolution, or match victory.
-- The Unity client must never connect directly to MySQL.
+4. **Message categories**
+   - Client → server:
+     - `Connect`
+     - `CreateRoom`
+     - `JoinRoom`
+     - `LeaveRoom`
+     - `ReadyState`
+     - `RematchVote`
+     - `InputFrame`
+     - `RefreshLeaderboard`
+   - Server → client:
+     - `RoomSnapshot`
+     - `MatchEvent`
+     - `MatchEnded`
+     - `LeaderboardData`
+     - `PersistenceStatus`
+     - `Error`
 
-### 3.2 Transport Topology
-- MVP topology is **2 Unity desktop clients ↔ 1 authoritative C# server ↔ MySQL (server only)**.
-- The protocol must stay architecturally ready for **4 players later**, but the first playable target assumes **2 connected players**.
-- The Unity client is thin: it captures keyboard/mouse input, renders predicted local presentation, and renders authoritative server snapshots/events.
+5. **Snapshot and input cadence**
+   - The server simulates and broadcasts authoritative snapshots at **20 Hz**.
+   - The local client emits exactly **one input frame per transport tick** while the room is in `Active`.
+   - Remote players are always rendered from authoritative snapshots with interpolation.
+   - The local player may use presentation-only prediction, but transport still carries only intents, never authoritative state claims.
 
-### 3.3 Session Lifecycle
-1. Client enters a local `Menu / Connecting` wrapper state.
-2. Client opens a TCP connection to the authoritative server.
-3. Client and server complete a version handshake before any room action is accepted.
-4. After handshake success, the client may send `Connect(playerName)` and `JoinRoom(roomCode)`.
-5. Once the server accepts the player into a room, the room snapshot becomes the only shared-state source for lobby/countdown/active/results flow.
-6. If the player leaves voluntarily before a match, the client sends `LeaveRoom` and returns to local menu flow.
-7. If the transport becomes stale or closes unexpectedly, the server resolves the room using ADR-0002 disconnect rules.
+6. **Heartbeat and liveness**
+   - If the client has not sent an input frame for **2.0 seconds**, it must send a heartbeat.
+   - If the server receives no input frame or heartbeat from a connected session for **5.0 seconds**, that player is considered stale/disconnected.
+   - If disconnection happens during an active match, downstream match rules resolve a disconnect forfeit.
 
-### 3.4 Accepted Client → Server Message Families
+7. **Duplicate and stale input handling**
+   - Every `InputFrame` includes a client tick value.
+   - The server stores the latest processed tick per session.
+   - Input frames older than or equal to the latest processed tick are ignored.
+   - The client never retries by inventing new outcome data; it only re-sends intents through normal transport flow if the connection is still alive.
 
-| Message Family | Source | Used In | Payload Rules | Notes |
-|---|---|---|---|---|
-| `Connect` | UI/bootstrap | before room join | player display name + protocol version | must succeed before join is accepted |
-| `JoinRoom` | UI intent | Lobby entry | room code / quick-join target | rejected on version mismatch or full room |
-| `LeaveRoom` | UI intent | Lobby / ResultsReady | session id + room id | not used to escape an active MVP match |
-| `Ready` | UI intent | Lobby | boolean intent edge | drives room-state service, not local UI logic |
-| `Rematch` | UI intent | ResultsReady | boolean intent edge | valid only during rematch window |
-| `RefreshLeaderboard` | UI intent | ResultsReady / leaderboard panel | optional limit / scope | server decides final query parameters |
-| `InputFrame` | gameplay input | Active | sequence/tick + movement vector + aim + fire edge | the primary gameplay transport message |
-| `Heartbeat` | transport keepalive | any shared server state | session id + latest known client tick | sent only when input silence crosses the keepalive threshold |
+8. **Reconnect policy**
+   - Rejoining an already active match is **not supported in MVP**.
+   - A disconnected player may reconnect only after returning to lobby flow.
+   - The system should prefer explicit failure and return-to-lobby behavior over hidden reconnect complexity.
 
-### 3.5 Accepted Server → Client Message Families
+9. **Transport framing rules**
+   - All protocol messages are length-prefixed and type-tagged.
+   - Every message must include protocol version metadata in the initial handshake.
+   - Transport payloads should stay compact and explicit; no reflection-heavy or engine-coupled transport format is allowed.
 
-| Message Family | Source System | Purpose | Client Behavior |
-|---|---|---|---|
-| `HandshakeAccepted / HandshakeRejected` | Network Session & Transport | version compatibility gate | proceed or fail clearly before join |
-| `RoomSnapshot` | Match Lifecycle & Room State | authoritative room roster, phase, timer, and player state | render read-only state |
-| `GameplayEvent` | gameplay systems through server event channel | battery pickup, hit confirmation, trap/debuff, countdown, end reason | show feedback only |
-| `CorrectionSnapshot` | server simulation | authoritative local-player correction and remote-player transforms | reconcile/interpolate |
-| `PersistenceStatus` | Results Persistence & Leaderboard | saving succeeded / failed | show results banner only |
-| `LeaderboardResponse` | Results Persistence & Leaderboard | ranking rows | render the returned rows only |
-| `Disconnect / RoomClosed / Error` | Network Session & Transport or room service | explicit failure reason | return to safe UI state and show reason |
+10. **Error visibility rules**
+    - The client must surface at least these player-visible errors:
+      - connection failed
+      - room full
+      - invalid room code
+      - protocol mismatch
+      - server disconnected
+    - Error display must be clear and recoverable; the player should know whether to retry, rejoin, or return to menu.
 
-### 3.6 Framing and Serialization Rules
-- Transport uses **length-prefixed framed TCP messages** so partial byte reads can be reconstructed safely.
-- Every message envelope includes:
-  - payload length
-  - protocol version
-  - message type (and version if needed)
-  - session identifier once the session exists
-- DTO fields stay human-readable and debugging-friendly at the schema level.
-- The transport wrapper must marshal parsed snapshot/event DTOs onto the Unity main thread before presentation systems consume them.
+### States and Transitions
 
-### 3.7 Tick, Prediction, and Delivery Rules
-- The authoritative server simulates at **20 ticks per second**.
-- The server broadcasts authoritative snapshots at **20 Hz** for MVP.
-- The locally controlled player may predict presentation immediately after capturing input, but the next server correction always wins.
-- Remote players are interpolation-only.
-- Each `InputFrame` carries a local sequence/tick so the server can ignore duplicate or older frames.
-- The transport layer must not fabricate missing gameplay inputs; silence is represented by either an idle `InputFrame` during active play or a `Heartbeat` if no input frame has been sent recently.
+| State | Entry Condition | Exit Condition | Behavior |
+|-------|-----------------|----------------|----------|
+| LocalIdle | App open, no active connection yet | Player submits create/join | Local menu only; no server session yet |
+| Connecting | Client opens socket and sends handshake | Handshake succeeds or fails | Wait for protocol validation |
+| RoomJoining | Handshake accepted, room create/join intent sent | Server accepts room entry or rejects | Await room snapshot or error |
+| LobbyConnected | Room snapshot confirms room membership | Player leaves, disconnects, or room state advances to Countdown | Show room code, roster, ready state |
+| MatchConnected | Room snapshot enters `Active` | Match ends or connection fails | Send `InputFrame`, receive live snapshots/events |
+| PostMatchConnected | Match enters `Ended` / `Saving` / `ResultsReady` | Return to lobby or disconnect | Receive results/persistence/leaderboard data |
+| Disconnected | Socket closed, timeout, or fatal protocol error | Player retries create/join | Show recoverable error or return path |
 
-### 3.8 Liveness and Failure Rules
-- If no input frame has been sent for **2 seconds**, the client sends a heartbeat.
-- If the server sees no input or heartbeat for **5 seconds**, the session becomes stale.
-- Reconnect to an **active** match is **not supported in the MVP**.
-- A protocol-version mismatch must be rejected before room join with an explicit error.
-- Duplicate or older client ticks are ignored without mutating authoritative state.
-- Focus loss / alt-tab must not silently kill the connection; it still obeys the same heartbeat timeout path.
+### Interactions With Other Systems
 
-### 3.9 Explicit Prohibitions
-- No client-authored competitive state.
-- No direct Unity-to-MySQL path.
-- No hidden transport bypass for rematch, ready, or leaderboard refresh.
-- No “best effort” local win/timeout inference in the client when snapshots are delayed.
+| System | Direction | Nature of Interaction |
+|--------|-----------|-----------------------|
+| Match Lifecycle & Room State | This system feeds it | Transport delivers join/leave/ready/rematch intents and authoritative room snapshots |
+| Player Controller & Input | This system depends on it | Local `InputFrame` payloads originate from the input runtime contract |
+| HUD, Results, and Ranking UI | UI depends on this system | UI reads connection state, room snapshots, errors, and persistence status through transport events |
+| Results Persistence & Leaderboard | This system exposes its outputs | Transport forwards persistence status and leaderboard query results from the server |
+| Slow Shot & Trap Interaction | This system carries its outcomes | Gameplay effect events and snapshot state travel through the same authoritative snapshot/event channel |
 
----
+## Formulas
 
-## 4. Formulas
+### Heartbeat Trigger
 
-### 4.1 Core Cadence
-- `server_tick_rate_hz = 20`
-- `server_tick_interval_ms = 1000 / 20 = 50`
-- `snapshot_rate_hz = 20`
-- `snapshot_interval_ms = 50`
+```text
+send_heartbeat = (time_since_last_input_frame >= 2.0 seconds)
+```
 
-### 4.2 Liveness Windows
-- `heartbeat_required = (now - last_sent_input_frame_at) >= 2000 ms`
-- `session_stale = (now - max(last_received_input_at, last_received_heartbeat_at)) >= 5000 ms`
+| Variable | Type | Range | Source | Description |
+|----------|------|-------|--------|-------------|
+| time_since_last_input_frame | float seconds | 0+ | client runtime | Time since the last emitted gameplay input frame |
 
-### 4.3 Input Acceptance
-- `accept_input_frame = protocol_version == supported_version AND client_tick > last_processed_tick[session] AND room_phase == Active`
-- `reject_input_frame = NOT accept_input_frame`
+**Expected output range**: boolean (`true` / `false`)
+**Edge case**: In non-`Active` room states, the client may still send a keepalive/room intent, but gameplay input must remain disabled.
 
-### 4.4 Room Capacity
-- `required_players_mvp = 2`
-- `max_players_mvp_default = 2`
-- `max_players_protocol_cap = 4`
-- `can_start_shared_room = connected_players == required_players_mvp AND ready_players == connected_players`
+### Stale Session Detection
 
-### 4.5 Reconnect Policy
-- `allow_reconnect_to_active_match = false`
-- `allow_reconnect_post_match = room_phase IN {Lobby, ResultsReady} AND active_match == false`
+```text
+session_is_stale = (time_since_last_received_input_or_heartbeat >= 5.0 seconds)
+```
 
-### 4.6 Ownership Check
-- `authoritative_write_allowed(state) = state.owner == server`
-- `client_write_allowed(state) = false` for `score`, `battery_state`, `trap_state`, `slow_state`, `match_end_reason`, and `room_phase`
+| Variable | Type | Range | Source | Description |
+|----------|------|-------|--------|-------------|
+| time_since_last_received_input_or_heartbeat | float seconds | 0+ | server session tracker | Time since the server last heard from the client session |
 
----
+**Expected output range**: boolean (`true` / `false`)
+**Edge case**: Once stale is true during `Active`, match rules must treat the player as disconnected rather than waiting indefinitely.
 
-## 5. Edge Cases
+### Snapshot Budget
 
-| Scenario | Expected Resolution | Why It Matters |
-|---|---|---|
-| Client protocol version does not match server | reject before room join and show explicit compatibility error | prevents undefined parsing or mixed-rule matches |
-| TCP packet arrives partially | framing layer buffers until full payload length is available | avoids corrupted DTO reads |
-| Same `InputFrame` arrives twice | ignore if `client_tick <= last_processed_tick[session]` | prevents duplicate movement/fire side effects |
-| Player disconnects during `Lobby` or `Countdown` | server returns room to `Lobby` using ADR-0002 | keeps ready/countdown state deterministic |
-| Player disconnects during `Active` in MVP 2-player match | server issues `DisconnectForfeit` result for disconnected player | keeps authority and fairness explicit |
-| Client alt-tabs and stops sending movement | heartbeats continue until the stale threshold is crossed | avoids silent dead sessions |
-| Client tries to rejoin an active match after timeout | reject reconnect and force return to safe lobby/menu flow | MVP intentionally avoids live state restoration complexity |
-| Snapshot arrives late after local prediction already moved the player | authoritative correction snapshot reconciles immediately | preserves responsiveness without weakening authority |
-| Leaderboard refresh is clicked repeatedly | transport may send repeated UI intents, but server owns idempotent response behavior | keeps UI spam from mutating shared state |
-| Room is full because 4-player seams are not enabled yet | reject join with explicit capacity error | keeps the 2-player MVP boundary obvious |
+```text
+snapshot_interval = 1 / 20 = 0.05 seconds
+```
 
----
+| Variable | Type | Range | Source | Description |
+|----------|------|-------|--------|-------------|
+| server_tick_rate | int Hz | fixed at 20 | ADR-0001 | Number of authoritative simulation/snapshot updates per second |
 
-## 6. Dependencies
+**Expected output range**: 0.05 seconds between snapshots in normal conditions.
+**Edge case**: If a snapshot is delayed, the client must continue interpolation from the last valid snapshot rather than inventing match outcomes.
 
-### Upstream Inputs
-- `design/gdd/game-concept.md` for 2-player MVP, authoritative-server, and results-visibility requirements
-- `design/gdd/systems-index.md` for system priority, dependency order, and foundation-layer role
-- `docs/architecture/adr-0001-network-authority-and-transport-strategy.md` for transport topology, framing, tick cadence, heartbeats, and reconnect policy
-- `docs/architecture/adr-0002-match-state-machine-and-event-ordering.md` for room states, disconnect handling, ready/rematch windows, and end-state ownership
-- `docs/architecture/adr-0007-player-controller-and-input-runtime-contract.md` for tick-aligned `InputFrame` structure and local prediction boundary
-- `docs/registry/architecture.yaml` for forbidden patterns and cross-system ownership contracts
-- `.claude/docs/technical-preferences.md` for Unity 6.3, C#, Input System, and testing expectations
+### Room Capacity Rule
 
-### Downstream Consumers
-- `Match Lifecycle & Room State` depends on transport to accept join/ready/rematch intents and emit authoritative room snapshots.
-- `Player Controller & Input` depends on transport to serialize gameplay input at the fixed tick cadence.
-- `Arena Battery Economy & Scoring` and `Slow Shot & Trap Interaction` depend on deduplicated, ordered authoritative tick delivery.
-- `Results Persistence & Leaderboard` depends on transport to return persistence and leaderboard responses to clients.
-- `HUD, Results, and Ranking UI` depends on transport for all shared-state visibility.
+```text
+can_join_room = (connected_players < 2)
+```
 
-### External Runtime Dependencies
-- Unity Input System on the client
-- .NET async sockets / TCP networking on the server
-- a shared DTO/message schema contract between client and server
+| Variable | Type | Range | Source | Description |
+|----------|------|-------|--------|-------------|
+| connected_players | int | 0-2 in MVP | authoritative room state | Number of active players currently occupying the room |
 
----
+**Expected output range**: boolean (`true` / `false`)
+**Edge case**: Spectators are not supported in MVP; a room at capacity is simply full.
 
-## 7. Tuning Knobs
+## Edge Cases
 
-| Knob | Default | Safe Range / Options | Why Tune It |
-|---|---|---|---|
-| `server_tick_rate_hz` | 20 | 15-30 during prototype only | balance responsiveness vs implementation/debug complexity |
-| `snapshot_rate_hz` | 20 | match server tick for MVP | keep correction feel and payload cadence readable |
-| `heartbeat_interval_ms` | 2000 | 1000-2500 | reduce silent disconnects without flooding the wire |
-| `stale_timeout_ms` | 5000 | 4000-6000 | trade off resilience vs fast disconnect resolution |
-| `required_players_mvp` | 2 | fixed at 2 for first playable | maintain delivery scope and room-state clarity |
-| `max_players_protocol_cap` | 4 | 2 or 4 depending on milestone | preserve the architecture-ready seam without forcing MVP UI/testing scope |
-| `room_join_error_copy` | concise explicit reason | version mismatch / room full / room closed | improve demo readability when connection fails |
-| `prediction_correction_policy` | immediate authoritative snap or short smoothing on client | tune during prototype | keep local feel responsive without hiding authority |
+| Scenario | Expected Behavior | Rationale |
+|----------|------------------|-----------|
+| Client sends input before handshake finishes | Ignore gameplay input until room state is `Active` | Prevent invalid or premature gameplay state |
+| Player enters an invalid room code | Server rejects join and client shows explicit recoverable error | Keeps demo flow understandable |
+| Duplicate `InputFrame` arrives | Server ignores it using session tick tracking | Prevents double-processing |
+| Player alt-tabs or stops moving during match | Client sends heartbeat after 2 seconds of no gameplay input | Prevents false disconnects for idle-but-connected players |
+| Network drop during active match | Server marks session stale after 5 seconds and downstream rules resolve disconnect forfeit | Keeps the match deterministic |
+| Player tries to reconnect mid-match | Reconnect is rejected for MVP active match flow | Avoids scope creep and fairness ambiguity |
+| Room is full | Join request is rejected with a room-full error | MVP is fixed at 2 active players |
+| Snapshot arrives late | Client keeps rendering from the last authoritative state with interpolation/correction | Presentation may soften jitter but never invent results |
 
-### Locked MVP Decisions
-- custom length-prefixed TCP transport is locked for MVP
-- reconnect-to-active-match is off for MVP
-- direct client database access is permanently forbidden
-- competitive state stays server-owned even if local prediction is smoothed visually
+## Dependencies
 
----
+| System | Direction | Nature of Dependency |
+|--------|-----------|---------------------|
+| Match Lifecycle & Room State | Other system depends on this | Needs room membership, ready/rematch intents, and live connection state |
+| Player Controller & Input | This system depends on Player Controller & Input | Input frames are built from local input-runtime output |
+| Results Persistence & Leaderboard | Other system depends on this system | Persistence status and leaderboard responses return through transport |
+| HUD, Results, and Ranking UI | Other system depends on this system | UI must show room code, errors, connection state, and authoritative results |
+| `docs/architecture/adr-0001-network-authority-and-transport-strategy.md` | Design dependency | Governs protocol, authority, cadence, and reconnect policy |
+| `docs/architecture/adr-0002-match-state-machine-and-event-ordering.md` | Design dependency | Governs room-state transitions and disconnect handling |
+| `docs/architecture/adr-0007-player-controller-and-input-runtime-contract.md` | Design dependency | Governs payload source and local prediction boundary |
 
-## 8. Acceptance Criteria
+## Tuning Knobs
 
-### Traceability Coverage
-- [ ] `TR-concept-003` is satisfied: the design explicitly supports a 2-player MVP while preserving 4-player-ready protocol seams.
-- [ ] `TR-concept-007` is satisfied: the Unity client sends intents only and the server is the sole writer of competitive match state.
-- [ ] `TR-concept-012` is satisfied: keyboard/mouse-derived input frames are the expected client gameplay transport input.
-- [ ] `TR-concept-014` is satisfied: room snapshots, disconnect results, persistence status, and leaderboard responses are visible to the client through the server pathway.
-- [ ] `TR-systems-001` is satisfied: this system is explicitly defined as the foundation transport that all downstream multiplayer systems depend on.
+| Parameter | Current Value | Safe Range | Effect of Increase | Effect of Decrease |
+|-----------|--------------|------------|-------------------|-------------------|
+| Server tick / snapshot rate | 20 Hz | 15-30 Hz | Smoother remote updates, more bandwidth/CPU | Less bandwidth, more visible latency/jitter |
+| Heartbeat silence threshold | 2.0 s | 1.0-3.0 s | More aggressive keepalive traffic | Longer idle gaps before keepalive |
+| Stale-session timeout | 5.0 s | 3.0-8.0 s | More tolerant of brief hiccups, slower disconnect resolution | Faster forfeit resolution, more false disconnect risk |
+| Room capacity | 2 players | 2-4 players | Supports stretch-scale matches | Keeps MVP simpler and easier to demo |
+| Error banner visibility duration | 2.0 s minimum or until dismissed | 1.5-5.0 s | Easier to notice errors | Faster return to interaction, higher miss risk |
 
-### Functional Design Checks
-- [ ] The GDD states that transport uses a dedicated authoritative C# server and custom length-prefixed TCP framing.
-- [ ] The GDD fixes the MVP cadence at 20 Hz server ticks and 20 Hz authoritative snapshots.
-- [ ] The GDD includes explicit formulas for heartbeat and stale-session timeout behavior.
-- [ ] The GDD forbids reconnecting to an active match in MVP.
-- [ ] The GDD names the only allowed shared UI intents: join, ready, rematch, and leaderboard refresh.
-- [ ] The GDD calls out duplicate/older input-frame rejection.
-- [ ] The GDD stays consistent with ADR-0001, ADR-0002, ADR-0007, `architecture.md`, and `docs/registry/architecture.yaml`.
+## Acceptance Criteria
 
-### Verification Targets
-- [ ] Two clients can complete handshake, join the same room, and receive the same authoritative room phase without client-derived match state.
-- [ ] Disconnecting one client during an active 2-player MVP match yields the same `DisconnectForfeit` outcome on the remaining client.
-- [ ] Partial TCP reads can be reconstructed safely by the framing layer.
-- [ ] Focus loss / idle input still follows the heartbeat → stale-session path instead of silently hanging the room.
-- [ ] Repeated leaderboard refresh or duplicate input messages do not create duplicate authoritative state changes.
+- [ ] A player can create or join a room only after a successful protocol-version handshake.
+- [ ] A full room rejects additional join attempts with a clear recoverable error.
+- [ ] The server receives at most one gameplay `InputFrame` per client transport tick while the room is `Active`.
+- [ ] If no gameplay input is sent for 2 seconds, the client emits a heartbeat instead of silently disappearing.
+- [ ] If the server receives no input or heartbeat for 5 seconds, the session is marked stale and downstream disconnect handling can proceed deterministically.
+- [ ] Duplicate or stale client ticks do not create duplicate movement/effect processing on the server.
+- [ ] Reconnect-to-active-match is explicitly unsupported in MVP and returns the player to a safe lobby/menu path.
+- [ ] UI receives enough transport state to show connection failures, room join failures, and room membership changes clearly.
+- [ ] All transport rules remain consistent with ADR-0001, ADR-0002, and ADR-0007.
