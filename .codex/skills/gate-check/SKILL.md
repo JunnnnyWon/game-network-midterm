@@ -1,29 +1,11 @@
 ---
-
-# Phase Gate Validation
-
-This skill validates whether the project is ready to advance to the next development
-phase. It checks for required artifacts, quality standards, and blockers.
-
-**Distinct from `/project-stage-detect`**: That skill is diagnostic ("where are we?").
-This skill is prescriptive ("are we ready to advance?" with a formal verdict).
-
-## Production Stages (7)
-
-The project progresses through these stages:
-
-1. **Concept** — Brainstorming, game concept document
-2. **Systems Design** — Mapping systems, writing GDDs
-3. **Technical Setup** — Engine config, architecture decisions
-4. **Pre-Production** — Prototyping, vertical slice validation
-5. **Production** — Feature development (Epic/Feature/spawn_agent tracking active)
-6. **Polish** — Performance, playtesting, bug fixing
-7. **Release** — Launch prep, certification
-
-**When a gate passes**, write the new stage name to `production/stage.txt`
-(single line, e.g. `Production`). This updates the status line immediately.
-
+name: gate-check
+description: "Validate readiness to advance between development phases. Produces a PASS/CONCERNS/FAIL verdict with specific blockers and required artifacts. Use when user says 'are we ready to move to X', 'can we advance to production', 'check if we can start the next phase', 'pass the gate'."
+argument-hint: "[target-phase: systems-design | technical-setup | pre-production | production | polish | release] [--review full|lean|solo]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Bash, Write, spawn_agent, request_user_input
 ---
+
 ## Codex Orchestration Contract
 
 Follow `.codex/docs/orchestration-contract.md` for all team/orchestration behavior in this file.

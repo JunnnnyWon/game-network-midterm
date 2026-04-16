@@ -1,25 +1,11 @@
 ---
-
-# Architecture Review
-
-The architecture review validates that the complete body of architectural decisions
-covers all game design requirements, is internally consistent, and correctly targets
-the project's pinned engine version. It is the quality gate between Technical Setup
-and Pre-Production.
-
-**Argument modes:**
-- **No argument / `full`**: Full review — all phases
-- **`coverage`**: Traceability only — which GDD requirements have no ADR
-- **`consistency`**: Cross-ADR conflict detection only
-- **`engine`**: Engine compatibility audit only
-- **`single-gdd [path]`**: Review architecture coverage for one specific GDD
-- **`rtm`**: Requirements Traceability Matrix — extends the standard matrix
-  to include story file paths and test file paths; outputs
-  `docs/architecture/requirements-traceability.md` with the full
-  GDD requirement → ADR → Story → Test chain. Use in Production phase when
-  stories and tests exist.
-
+name: architecture-review
+description: "Validates completeness and consistency of the project architecture against all GDDs. Builds a traceability matrix mapping every GDD technical requirement to ADRs, identifies coverage gaps, detects cross-ADR conflicts, verifies engine compatibility consistency across all decisions, and produces a PASS/CONCERNS/FAIL verdict. The architecture equivalent of /design-review."
+argument-hint: "[focus: full | coverage | consistency | engine | single-gdd path/to/gdd.md]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, spawn_agent, request_user_input
 ---
+
 ## Codex Orchestration Contract
 
 Follow `.codex/docs/orchestration-contract.md` for all team/orchestration behavior in this file.

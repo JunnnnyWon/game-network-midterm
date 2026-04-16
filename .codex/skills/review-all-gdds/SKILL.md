@@ -1,35 +1,11 @@
 ---
-
-# Review All GDDs
-
-This skill reads every system GDD simultaneously and performs two complementary
-reviews that cannot be done per-GDD in isolation:
-
-1. **Cross-GDD Consistency** — contradictions, stale references, and ownership
-   conflicts between documents
-2. **Game Design Holism** — issues that only emerge when you see all systems
-   together: dominant strategies, broken economies, cognitive overload, pillar
-   drift, competing progression loops
-
-**This is distinct from `/design-review`**, which reviews one GDD for internal
-completeness. This skill reviews the *relationships* between all GDDs.
-
-**When to run:**
-- After all MVP-tier GDDs are individually approved
-- After any GDD is significantly revised mid-production
-- Before `/create-architecture` begins (architecture built on inconsistent GDDs
-  inherits those inconsistencies)
-
-**Argument modes:**
-
-**Focus:** `$ARGUMENTS[0]` (blank = `full`)
-
-- **No argument / `full`**: Both consistency and design theory passes
-- **`consistency`**: Cross-GDD consistency checks only (faster)
-- **`design-theory`**: Game design holism checks only
-- **`since-last-review`**: Only GDDs modified since the last review report (git-based)
-
+name: review-all-gdds
+description: "Holistic cross-GDD consistency and game design review. Reads all system GDDs simultaneously and checks for contradictions between them, stale references, ownership conflicts, formula incompatibilities, and game design theory violations (dominant strategies, economic imbalance, cognitive overload, pillar drift). Run after all MVP GDDs are written, before architecture begins."
+argument-hint: "[focus: full | consistency | design-theory | since-last-review]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Write, Bash, request_user_input, spawn_agent
 ---
+
 ## Codex Orchestration Contract
 
 Follow `.codex/docs/orchestration-contract.md` for all team/orchestration behavior in this file.
