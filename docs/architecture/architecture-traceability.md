@@ -13,6 +13,17 @@
 
 ## Coverage Summary
 
+## Tier A slice coverage
+
+Covered Tier A systems:
+- Network Session & Transport
+- Match Lifecycle & Room State
+- Player Controller & Input
+- Arena Battery Economy & Scoring
+- Results Persistence & Leaderboard
+- HUD, Results, and Ranking UI
+
+
 | Status | Count | Percentage |
 |--------|-------|-----------|
 | ✅ Covered | 22 | 100% |

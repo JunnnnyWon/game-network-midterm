@@ -19,13 +19,13 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| 1 | Match Lifecycle & Room State | Core | MVP | Draft | design/gdd/match-lifecycle-and-room-state.md | Network Session & Transport |
-| 2 | Network Session & Transport | Foundation | MVP | Draft | design/gdd/network-session-and-transport.md | — |
-| 3 | Player Controller & Input | Core | MVP | Draft | design/gdd/player-controller-and-input.md | Match Lifecycle & Room State |
-| 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Draft | design/gdd/arena-battery-economy-and-scoring.md | Match Lifecycle & Room State, Player Controller & Input |
+| 1 | Match Lifecycle & Room State | Core | MVP | Reviewed | design/gdd/match-lifecycle-and-room-state.md | Network Session & Transport |
+| 2 | Network Session & Transport | Foundation | MVP | Reviewed | design/gdd/network-session-and-transport.md | — |
+| 3 | Player Controller & Input | Core | MVP | Reviewed | design/gdd/player-controller-and-input.md | Match Lifecycle & Room State |
+| 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Reviewed | design/gdd/arena-battery-economy-and-scoring.md | Match Lifecycle & Room State, Player Controller & Input |
 | 5 | Slow Shot & Trap Interaction | Gameplay | MVP | Draft | design/gdd/slow-shot-and-trap-interaction.md | Player Controller & Input, Arena Battery Economy & Scoring |
-| 6 | Results Persistence & Leaderboard | Persistence | MVP | Draft | design/gdd/results-persistence-and-leaderboard.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring |
-| 7 | HUD, Results, and Ranking UI | UI | MVP | Draft | design/gdd/hud-results-and-ranking-ui.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard |
+| 6 | Results Persistence & Leaderboard | Persistence | MVP | Reviewed | design/gdd/results-persistence-and-leaderboard.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring |
+| 7 | HUD, Results, and Ranking UI | UI | MVP | Reviewed | design/gdd/hud-results-and-ranking-ui.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard |
 | 8 | Audio Feedback | Audio | Vertical Slice | Draft | design/gdd/audio-feedback.md | Match Lifecycle & Room State, Slow Shot & Trap Interaction |
 
 ---
@@ -136,7 +136,7 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 |--------|-------|
 | Total systems identified | 8 |
 | Design docs started | 8 |
-| Design docs reviewed | 1 |
+| Design docs reviewed | 6 |
 | Design docs approved | 0 |
 | Systems with accepted ADR coverage | 8/8 |
 | MVP systems designed | 7/7 |

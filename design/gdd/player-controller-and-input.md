@@ -1,6 +1,6 @@
 # Player Controller & Input
 
-> **Status**: Draft
+> **Status**: Reviewed
 > **Author**: Codex
 > **Last Updated**: 2026-04-16
 > **Last Verified**: 2026-04-16

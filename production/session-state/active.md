@@ -45,3 +45,12 @@
 - New ADRs accepted: ADR-0007, ADR-0008
 - Residual issue cleared: stale traceability/review artifacts refreshed
 - Report: docs/architecture/architecture-review-2026-04-16.md
+
+## Session Extract — Tier A dev-ready 2026-04-16
+- Networking risk artifact: docs/architecture/network-risk-waiver.md (ACCEPTED WAIVER)
+- Tier A reviews: 6/6 reviewed and reflected in systems-index
+- Cross-review: design/gdd/gdd-cross-review-tier-a-2026-04-16.md (PASS)
+- Architecture refresh: docs/architecture/architecture-review-tier-a-2026-04-16.md + architecture-traceability Tier A section
+- UX/accessibility: complete for Tier A
+- Execution handoff: epic/story/sprint + READY first story created
+- Tier A stop condition: satisfied; coding may start on story-001-network-session-spike.md
