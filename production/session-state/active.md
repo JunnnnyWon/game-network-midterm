@@ -38,3 +38,10 @@
 - GDD revision flags: None
 - Top ADR gaps: player-controller-and-input-runtime-contract, audio-feedback-event-contract
 - Report: docs/architecture/architecture-review-2026-04-16.md
+
+## Session Extract — /architecture-review refresh 2026-04-16
+- Verdict: PASS
+- Requirements: 22 total — 22 covered, 0 partial, 0 gaps
+- New ADRs accepted: ADR-0007, ADR-0008
+- Residual issue cleared: stale traceability/review artifacts refreshed
+- Report: docs/architecture/architecture-review-2026-04-16.md
