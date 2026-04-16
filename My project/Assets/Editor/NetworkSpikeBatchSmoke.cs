@@ -38,6 +38,11 @@ public static class NetworkSpikeBatchSmoke
         var mismatchObserved = false;
         var staleObserved = false;
         var inputAckObserved = false;
+        var countdownObserved = false;
+        var activeObserved = false;
+        var savingObserved = false;
+        var resultsObserved = false;
+        var disconnectForfeitObserved = false;
 
         using var clientA = new NetworkSpikeClient(config);
         using var clientB = new NetworkSpikeClient(config);
@@ -47,6 +52,11 @@ public static class NetworkSpikeBatchSmoke
         {
             if (msg.Type == "room_joined" && string.IsNullOrEmpty(roomCode)) roomCode = msg.RoomCode;
             if (msg.Type == "input_frame_ack") inputAckObserved = true;
+            if (msg.Type == "room_snapshot" && msg.RoomState == "Countdown") countdownObserved = true;
+            if (msg.Type == "room_snapshot" && msg.RoomState == "Active") activeObserved = true;
+            if (msg.Type == "room_snapshot" && msg.RoomState == "Saving") savingObserved = true;
+            if (msg.Type == "room_snapshot" && msg.RoomState == "ResultsReady") resultsObserved = true;
+            if (msg.Type == "room_snapshot" && msg.EndReason == "DisconnectForfeit") disconnectForfeitObserved = true;
         };
         clientB.MessageReceived += msg =>
         {
@@ -76,15 +86,30 @@ public static class NetworkSpikeBatchSmoke
         await badClient.ConnectAndHandshakeAsync("BadClient", "bad-version", cts.Token);
         await Task.Delay(500, cts.Token);
 
+        await clientA.SetReadyAsync(true, cts.Token);
+        await clientB.SetReadyAsync(true, cts.Token);
+        await Task.Delay(TimeSpan.FromSeconds(4), cts.Token);
+
         await clientA.SendInputFrameAsync(1, new Vector2(1f, 0f), Vector2.right, false, cts.Token);
         await Task.Delay(500, cts.Token);
 
+        // Disconnect client B during active play; A should observe DisconnectForfeit and the Saving -> ResultsReady flow.
+        clientB.Dispose();
+        await Task.Delay(TimeSpan.FromSeconds(3), cts.Token);
+
+        // Open a third valid client that idles to prove stale timeout without joining a room.
+        using var staleClient = new NetworkSpikeClient(config);
+        staleClient.MessageReceived += msg =>
+        {
+            if (msg.Type == "session_stale") staleObserved = true;
+        };
+        await staleClient.ConnectAndHandshakeAsync("IdleClient", cancellationToken: cts.Token);
         await Task.Delay(TimeSpan.FromSeconds(6), cts.Token);
 
-        var success = !string.IsNullOrWhiteSpace(roomCode) && mismatchObserved && inputAckObserved && staleObserved;
+        var success = !string.IsNullOrWhiteSpace(roomCode) && mismatchObserved && countdownObserved && activeObserved && inputAckObserved && disconnectForfeitObserved && savingObserved && resultsObserved && staleObserved;
         if (!success)
         {
-            Debug.LogError($"Smoke failed. room={roomCode}, mismatch={mismatchObserved}, inputAck={inputAckObserved}, stale={staleObserved}");
+            Debug.LogError($"Smoke failed. room={roomCode}, mismatch={mismatchObserved}, countdown={countdownObserved}, active={activeObserved}, inputAck={inputAckObserved}, disconnectForfeit={disconnectForfeitObserved}, saving={savingObserved}, results={resultsObserved}, stale={staleObserved}");
             return 3;
         }
 

@@ -49,3 +49,41 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 - The runtime Unity bootstrap now lives under `My project/Assets/Scripts/NetworkSpike/`.
 - The external server lives under `src/NetworkSpikeServer/`.
 - A full interactive play-mode pass in the Unity Editor is still recommended as the next manual sanity check, but the spike contract itself is now implemented and evidenced.
+
+
+## Findings — 2026-04-16 room-state slice
+
+### Evidence captured
+- Unity project scripts compile successfully in batchmode after the room-state additions.
+- Live protocol smoke proved authoritative room-state visibility on top of the existing transport layer.
+
+### Observed results
+- **Lobby state is visible after room creation/join** — PASS
+- **Two ready players trigger a shared 3-second countdown** — PASS
+- **Countdown transitions to Active automatically** — PASS
+- **Input-frame acknowledgement still works during Active** — PASS
+- **A forced debug end transitions through Ended to ResultsReady** — PASS
+
+### Notes
+- This slice is still a debug-oriented room-state implementation, not full gameplay scoring.
+- ResultsReady currently uses a placeholder end reason (`manual_debug_end`) for visibility.
+- The next implementation slice should replace the placeholder end path with battery scoring + target-score / timeout driven match conclusion.
+
+
+## Findings — 2026-04-16 authoritative room-state slice
+
+### Evidence captured
+- Unity project scripts compile successfully in batchmode after the room-state changes.
+- Live protocol smoke proved authoritative room-state transitions on top of the existing transport layer.
+
+### Observed results
+- **Lobby state is visible after room creation/join** — PASS
+- **Two ready players trigger a shared countdown** — PASS
+- **Countdown transitions to Active automatically** — PASS
+- **Input-frame acknowledgement is only accepted during Active** — PASS
+- **Active disconnect resolves as DisconnectForfeit** — PASS
+- **Room state transitions through Ended -> Saving -> ResultsReady** — PASS
+
+### Notes
+- The current result path is still a placeholder room-state flow, not full score-based victory.
+- The next slice should connect the battery/scoring system so end-state reasons can come from actual gameplay resolution instead of debug/disconnect cases only.

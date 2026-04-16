@@ -18,6 +18,7 @@ public sealed class ClientMessage
     public float AimX { get; set; }
     public float AimY { get; set; }
     public bool FirePressed { get; set; }
+    public bool IsReady { get; set; }
 }
 
 /// <summary>
@@ -31,6 +32,13 @@ public sealed class ServerMessage
     public string Error { get; set; } = string.Empty;
     public int Tick { get; set; }
     public string Detail { get; set; } = string.Empty;
+    public string RoomState { get; set; } = string.Empty;
+    public int PlayerCount { get; set; }
+    public int ReadyPlayers { get; set; }
+    public float CountdownRemainingSeconds { get; set; }
+    public string EndReason { get; set; } = string.Empty;
+    public string PersistenceStatus { get; set; } = string.Empty;
+    public string[] Members { get; set; } = [];
 }
 
 /// <summary>

@@ -100,6 +100,12 @@ public sealed class NetworkSpikeClient : IDisposable
         SendAsync(new SpikeClientMessage { Type = "join_room", RoomCode = roomCode }, cancellationToken);
 
     /// <summary>
+    /// Sends authoritative ready-state intent.
+    /// </summary>
+    public Task SetReadyAsync(bool isReady, CancellationToken cancellationToken = default) =>
+        SendAsync(new SpikeClientMessage { Type = "ready_state", IsReady = isReady }, cancellationToken);
+
+    /// <summary>
     /// Sends a heartbeat when no gameplay input has been emitted recently.
     /// </summary>
     public async Task MaybeSendHeartbeatAsync(CancellationToken cancellationToken = default)
