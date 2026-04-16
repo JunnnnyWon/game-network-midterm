@@ -161,3 +161,23 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - This slice still uses spike-style direct requests (`fire_slow_shot`, `trigger_trap`) rather than full world-position hit/trap detection.
 - The next slice should convert from debug-triggered effects to route/position-driven gameplay interactions and then connect UI polish around cooldown/debuff feedback.
+
+
+## Findings — 2026-04-17 cooldown/debuff HUD slice
+
+### Evidence captured
+- External C# spike server builds successfully after the localized cooldown snapshot payload was added.
+- Unity client scripts compile successfully via `dotnet build My project/Assembly-CSharp.csproj`.
+- Unity batch smoke now asserts both readiness and spent-cooldown payloads alongside the existing effect/immunity checks.
+- The IMGUI spike HUD now surfaces a dedicated local ability panel for slow-shot readiness plus debuff/immunity state without introducing client authority.
+
+### Observed results
+- **Room snapshots expose authoritative local slow-shot readiness/cooldown state** — PASS
+- **The spike HUD shows readable slow-shot readiness/cooldown feedback during Active play** — PASS
+- **Cooldown snapshots keep refreshing while the room stays Active** — PASS
+- **Debuff and immunity timing are surfaced in a dedicated HUD treatment rather than only the raw log/effect string** — PASS
+- **Existing scoring/effect/persistence smoke coverage still passes with the HUD additions** — PASS
+
+### Notes
+- The cooldown payload is still intentionally local-only per snapshot (`SessionId`-scoped) so opponents do not gain extra remote-state authority beyond the existing effect feed.
+- The current HUD remains IMGUI-based for spike speed; a later production UI pass can replace the pills/cards with the project’s real screen framework without changing the authoritative payload contract.

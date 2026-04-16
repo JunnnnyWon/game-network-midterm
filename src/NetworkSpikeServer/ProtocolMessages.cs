@@ -44,8 +44,13 @@ public sealed class ServerMessage
     public int[] ActiveBatteryIds { get; set; } = [];
     public string[] Scoreboard { get; set; } = [];
     public float MatchTimeRemainingSeconds { get; set; }
+    /// <summary>
+    /// Remaining authoritative cooldown for the local player's slow shot.
+    /// </summary>
+    public float SlowShotCooldownRemainingSeconds { get; set; }
     public string[] EffectStates { get; set; } = [];
     public string[] PlayerPositions { get; set; } = [];
+    public bool SlowShotReady { get; set; }
 }
 
 /// <summary>

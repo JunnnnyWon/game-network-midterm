@@ -52,8 +52,10 @@ namespace BatteryRushArena.NetworkSpike
         public int[] ActiveBatteryIds = Array.Empty<int>();
         public string[] Scoreboard = Array.Empty<string>();
         public float MatchTimeRemainingSeconds;
+        public float SlowShotCooldownRemainingSeconds;
         public string[] EffectStates = Array.Empty<string>();
         public string[] PlayerPositions = Array.Empty<string>();
+        public bool SlowShotReady;
     }
 
     internal static class LengthPrefixedProtocol

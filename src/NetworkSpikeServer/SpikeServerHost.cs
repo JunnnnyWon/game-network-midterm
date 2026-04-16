@@ -367,6 +367,12 @@ public sealed class SpikeServerHost
                             shouldBroadcast = true;
                             messageType = "effect_state_changed";
                         }
+                        else
+                        {
+                            shouldBroadcast = true;
+                            messageType = "active_tick";
+                            includeDetail = false;
+                        }
                         break;
                         case SpikeRoomState.Ended:
                             if (DateTimeOffset.UtcNow - room.StateEnteredUtc >= TimeSpan.FromSeconds(0.5))
@@ -480,6 +486,17 @@ public sealed class SpikeServerHost
         {
             try
             {
+                var cooldownRemaining = 0f;
+                var readyAt = DateTimeOffset.MinValue;
+                lock (_roomRegistry.SyncRoot)
+                {
+                    readyAt = room.SlowShotReadyAtBySessionId.GetValueOrDefault(member.SessionId);
+                    if (readyAt > DateTimeOffset.UtcNow)
+                    {
+                        cooldownRemaining = Math.Max(0f, (float)(readyAt - DateTimeOffset.UtcNow).TotalSeconds);
+                    }
+                }
+
                 var message = new ServerMessage
                 {
                     Type = "room_snapshot",
@@ -497,7 +514,9 @@ public sealed class SpikeServerHost
                     Scoreboard = scoreboard,
                     EffectStates = effectStates,
                     PlayerPositions = playerPositions,
-                    MatchTimeRemainingSeconds = matchTimeRemaining
+                    MatchTimeRemainingSeconds = matchTimeRemaining,
+                    SlowShotReady = cooldownRemaining <= 0.01f,
+                    SlowShotCooldownRemainingSeconds = cooldownRemaining
                 };
                 await LengthPrefixedProtocol.WriteAsync(member.Stream, message, cancellationToken);
             }

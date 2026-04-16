@@ -163,6 +163,12 @@ namespace BatteryRushArena.Editor
             SmokeObservations observations,
             CancellationToken cancellationToken)
         {
+            if (!observations.CooldownReadyObserved)
+            {
+                Debug.LogError("Initial active snapshot did not expose slow-shot readiness for the firing player.");
+                return false;
+            }
+
             await clientA.SendInputFrameAsync(4, Vector2.up, Vector2.right, false, cancellationToken);
             var trapSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => HasEffect(msg, "PlayerA", "Trap", 0.80f), cancellationToken, 4000);
             if (trapSnapshot == null)
@@ -181,6 +187,30 @@ namespace BatteryRushArena.Editor
                 Debug.LogError("Slow shot effect was not observed from input-frame fire.");
                 return false;
             }
+
+            if (slowShotSnapshot.SlowShotReady || slowShotSnapshot.SlowShotCooldownRemainingSeconds <= 0.05f)
+            {
+                Debug.LogError("Slow shot snapshot did not expose an active cooldown for the firing player.");
+                return false;
+            }
+
+            observations.CooldownSpentObserved = true;
+            Debug.Log("PASS: Slow-shot fire exposes authoritative cooldown feedback.");
+
+            var cooldownTickSnapshot = await WaitForRoomSnapshotAsync(
+                clientB,
+                msg => msg.RoomState == "Active"
+                       && msg.SlowShotCooldownRemainingSeconds > 0.05f
+                       && msg.SlowShotCooldownRemainingSeconds < slowShotSnapshot.SlowShotCooldownRemainingSeconds,
+                cancellationToken,
+                4000);
+            if (cooldownTickSnapshot == null)
+            {
+                Debug.LogError("Cooldown feedback did not refresh while the match stayed active.");
+                return false;
+            }
+
+            Debug.Log("PASS: Cooldown snapshot keeps refreshing while Active.");
 
             if (!HasEffectEntry(slowShotSnapshot, "PlayerA"))
             {
@@ -570,6 +600,8 @@ namespace BatteryRushArena.Editor
             public bool PositionFeedObserved { get; private set; }
             public bool ScoreboardFeedObserved { get; private set; }
             public bool EffectFeedObserved { get; private set; }
+            public bool CooldownReadyObserved { get; private set; }
+            public bool CooldownSpentObserved { get; set; }
             public bool SavingStatusObserved { get; private set; }
             public bool SavedStatusObserved { get; private set; }
             public bool ResultsPayloadObserved { get; private set; }
@@ -602,6 +634,8 @@ namespace BatteryRushArena.Editor
                 PositionFeedObserved |= HasPlayersInPositionFeed(message, "PlayerA", "PlayerB");
                 ScoreboardFeedObserved |= HasScoreboardEntries(message, "PlayerA", "PlayerB");
                 EffectFeedObserved |= HasEffectEntry(message, "PlayerA");
+                CooldownReadyObserved |= message.RoomState == "Active" && message.SlowShotReady;
+                CooldownSpentObserved |= message.RoomState == "Active" && !message.SlowShotReady && message.SlowShotCooldownRemainingSeconds > 0.05f;
                 SavingStatusObserved |= message.RoomState == "Saving" && HasPersistenceStatus(message, "Saving");
                 SavedStatusObserved |= message.RoomState == "ResultsReady" && HasPersistenceStatus(message, "Saved");
                 ResultsPayloadObserved |= message.RoomState == "ResultsReady"
@@ -642,13 +676,15 @@ namespace BatteryRushArena.Editor
                 && PositionFeedObserved
                 && ScoreboardFeedObserved
                 && EffectFeedObserved
+                && CooldownReadyObserved
+                && CooldownSpentObserved
                 && SavingStatusObserved
                 && SavedStatusObserved
                 && ResultsPayloadObserved
                 && StaleObserved;
 
             public string BuildFailureSummary(string roomCode) =>
-                $"Smoke failed. room={roomCode}, mismatch={MismatchObserved}, countdown={CountdownObserved}, active={ActiveObserved}, movement={MovementObserved}, targetScore={TargetScoreObserved}, saving={SavingObserved}, results={ResultsObserved}, slowShot={SlowShotObserved}, trap={TrapObserved}, immunity={ImmunityObserved}, strongest={StrongestSlowObserved}, positionFeed={PositionFeedObserved}, scoreboardFeed={ScoreboardFeedObserved}, effectFeed={EffectFeedObserved}, savingStatus={SavingStatusObserved}, savedStatus={SavedStatusObserved}, resultsPayload={ResultsPayloadObserved}, stale={StaleObserved}";
+                $"Smoke failed. room={roomCode}, mismatch={MismatchObserved}, countdown={CountdownObserved}, active={ActiveObserved}, movement={MovementObserved}, targetScore={TargetScoreObserved}, saving={SavingObserved}, results={ResultsObserved}, slowShot={SlowShotObserved}, trap={TrapObserved}, immunity={ImmunityObserved}, strongest={StrongestSlowObserved}, positionFeed={PositionFeedObserved}, scoreboardFeed={ScoreboardFeedObserved}, effectFeed={EffectFeedObserved}, cooldownReady={CooldownReadyObserved}, cooldownSpent={CooldownSpentObserved}, savingStatus={SavingStatusObserved}, savedStatus={SavedStatusObserved}, resultsPayload={ResultsPayloadObserved}, stale={StaleObserved}";
         }
     }
 }

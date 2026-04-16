@@ -14,6 +14,13 @@ namespace BatteryRushArena.NetworkSpike
     public sealed class NetworkSpikeApp : MonoBehaviour
     {
         private const float ArenaWorldHalfExtent = 3.5f;
+        private const float HudCardWidth = 168f;
+        private const float HudCardHeight = 48f;
+        private const float HudCardGap = 12f;
+        private const float AbilityPanelWidth = 212f;
+        private const float AbilityPanelHeight = 64f;
+        private const float AbilityPillWidth = 94f;
+        private const float AbilityPillHeight = 22f;
         private static readonly Vector2[] BatterySpawnPreview =
         {
             new(0f, 0f),
@@ -48,6 +55,7 @@ namespace BatteryRushArena.NetworkSpike
         private int[] _activeBatteryIds = Array.Empty<int>();
         private GUIStyle _overlayTitleStyle;
         private GUIStyle _overlaySubStyle;
+        private GUIStyle _pillLabelStyle;
 
         private void Awake()
         {
@@ -247,7 +255,9 @@ namespace BatteryRushArena.NetworkSpike
             DrawBatteryPreview(rect);
             DrawPlayerPreview(rect);
             DrawStateOverlay(rect);
+            DrawStatusWidgets(rect);
             DrawHudSummary(rect);
+            DrawAbilityHud(rect);
         }
 
         private void DrawArenaGrid(Rect rect)
@@ -380,15 +390,69 @@ namespace BatteryRushArena.NetworkSpike
             var topRow = new Rect(summaryRect.x + 12f, summaryRect.y + 8f, summaryRect.width - 24f, 22f);
             GUI.Label(topRow, $"Room {FormatValue(_roomCode)} · State {FormatValue(_lastServerMessage.RoomState)} · Timer {_lastServerMessage.MatchTimeRemainingSeconds:F1}s");
 
-            var localPlayer = _playerVisuals.FirstOrDefault(player => string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+            var localPlayer = GetLocalPlayer();
             var opponent = _playerVisuals.FirstOrDefault(player => !string.Equals(player.Name, _playerName, StringComparison.Ordinal))
                            ?? (_playerVisuals.Count > 1 ? _playerVisuals[1] : null);
 
             var bottomText = localPlayer is null
                 ? "Waiting for authoritative player snapshots."
                 : $"Local {localPlayer.Name}: score {localPlayer.Score}, status {BuildPlayerStatus(localPlayer)}"
+                  + $" · Slow shot {BuildCooldownLabel()}"
                   + (opponent is not null ? $" · Rival {opponent.Name}: score {opponent.Score}, status {BuildPlayerStatus(opponent)}" : string.Empty);
             GUI.Label(new Rect(summaryRect.x + 12f, summaryRect.y + 32f, summaryRect.width - 24f, 28f), bottomText);
+        }
+
+        private void DrawStatusWidgets(Rect rect)
+        {
+            var localPlayer = GetLocalPlayer();
+            var cooldownRect = new Rect(rect.x + 12f, rect.y + 12f, HudCardWidth, HudCardHeight);
+            DrawHudCard(
+                cooldownRect,
+                "Cooldown",
+                BuildCooldownCardLabel(),
+                GetCooldownAccentColor());
+
+            if (localPlayer is null)
+            {
+                return;
+            }
+
+            var effectRect = new Rect(cooldownRect.xMax + HudCardGap, rect.y + 12f, HudCardWidth + 20f, HudCardHeight);
+            DrawHudCard(
+                effectRect,
+                "Effect",
+                BuildEffectLabel(localPlayer),
+                GetEffectAccentColor(localPlayer));
+
+            var fill = GetEffectFill(localPlayer);
+            if (fill <= 0f)
+            {
+                return;
+            }
+
+            var barRect = new Rect(effectRect.x + 12f, effectRect.yMax - 12f, effectRect.width - 24f, 6f);
+            DrawFilledRect(barRect, new Color(1f, 1f, 1f, 0.1f));
+            DrawFilledRect(new Rect(barRect.x, barRect.y, barRect.width * fill, barRect.height),
+                GetEffectBarColor(localPlayer));
+        }
+
+        private void DrawAbilityHud(Rect rect)
+        {
+            var localPlayer = GetLocalPlayer();
+            var panelRect = new Rect(rect.x + rect.width - (AbilityPanelWidth + HudCardGap), rect.yMax - 154f, AbilityPanelWidth, AbilityPanelHeight);
+            DrawFilledRect(panelRect, new Color(0.07f, 0.1f, 0.16f, 0.9f));
+            DrawOutline(panelRect, new Color(0.31f, 0.42f, 0.58f, 1f), 1.5f);
+
+            GUI.Label(new Rect(panelRect.x + 10f, panelRect.y + 8f, panelRect.width - 20f, 18f), "Local Ability HUD");
+            DrawStatusPill(
+                new Rect(panelRect.x + 10f, panelRect.y + 30f, AbilityPillWidth, AbilityPillHeight),
+                $"Slow {BuildCooldownLabel()}",
+                GetCooldownAccentColor(0.95f));
+
+            DrawStatusPill(
+                new Rect(panelRect.x + 10f + AbilityPillWidth + 4f, panelRect.y + 30f, AbilityPillWidth, AbilityPillHeight),
+                localPlayer is null ? "Awaiting feed" : BuildEffectLabel(localPlayer),
+                localPlayer is null ? new Color(0.24f, 0.4f, 0.66f, 0.95f) : GetEffectAccentColor(localPlayer, 0.95f));
         }
 
         private void RefreshPresentationSnapshot(SpikeServerMessage message)
@@ -437,6 +501,57 @@ namespace BatteryRushArena.NetworkSpike
 
             return "Clear";
         }
+
+        private string BuildCooldownLabel() =>
+            _lastServerMessage.SlowShotReady
+                ? "READY"
+                : $"{Mathf.Max(0f, _lastServerMessage.SlowShotCooldownRemainingSeconds):0.0}s";
+
+        private string BuildCooldownCardLabel() =>
+            _lastServerMessage.SlowShotReady
+                ? "Slow shot ready"
+                : $"Slow shot cooldown {BuildCooldownLabel()}";
+
+        private static string BuildEffectLabel(PlayerVisualState player)
+        {
+            if (player.IsDebuffed)
+            {
+                return $"{player.EffectSource} {player.EffectRemainingSeconds:0.0}s";
+            }
+
+            if (player.ImmunityRemainingSeconds > 0.05f)
+            {
+                return $"Immune {player.ImmunityRemainingSeconds:0.0}s";
+            }
+
+            return "Clear";
+        }
+
+        private PlayerVisualState GetLocalPlayer() =>
+            _playerVisuals.FirstOrDefault(player => string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+
+        private Color GetCooldownAccentColor(float alpha = 1f) =>
+            _lastServerMessage.SlowShotReady ? new Color(0.24f, 0.62f, 0.34f, alpha) : new Color(0.8f, 0.39f, 0.14f, alpha);
+
+        private static Color GetEffectAccentColor(PlayerVisualState player, float alpha = 1f)
+        {
+            if (player.IsDebuffed)
+            {
+                return new Color(0.84f, 0.33f, 0.22f, alpha);
+            }
+
+            return player.ImmunityRemainingSeconds > 0.05f
+                ? new Color(0.82f, 0.72f, 0.2f, alpha)
+                : new Color(0.25f, 0.43f, 0.66f, alpha);
+        }
+
+        private static Color GetEffectBarColor(PlayerVisualState player) =>
+            player.IsDebuffed ? new Color(1f, 0.52f, 0.27f, 1f) : new Color(1f, 0.93f, 0.42f, 1f);
+
+        private static float GetEffectFill(PlayerVisualState player) =>
+            player.IsDebuffed
+                ? Mathf.Clamp01(player.EffectRemainingSeconds / 1.25f)
+                : Mathf.Clamp01(player.ImmunityRemainingSeconds / 0.5f);
 
         private static string FormatValue(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
@@ -538,7 +653,7 @@ namespace BatteryRushArena.NetworkSpike
 
         private void EnsureOverlayStyles()
         {
-            if (_overlayTitleStyle != null && _overlaySubStyle != null)
+            if (_overlayTitleStyle != null && _overlaySubStyle != null && _pillLabelStyle != null)
             {
                 return;
             }
@@ -557,6 +672,21 @@ namespace BatteryRushArena.NetworkSpike
                 wordWrap = true,
                 normal = { textColor = new Color(0.88f, 0.92f, 1f, 1f) }
             };
+            _pillLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 11,
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip,
+                normal = { textColor = Color.white }
+            };
+        }
+
+        private void DrawStatusPill(Rect rect, string text, Color fill)
+        {
+            DrawFilledRect(rect, fill);
+            DrawOutline(rect, new Color(1f, 1f, 1f, 0.2f), 1f);
+            GUI.Label(rect, text, _pillLabelStyle);
         }
 
         private static Rect BuildMarkerRect(Rect arenaRect, Vector2 worldPosition, float size)
@@ -582,6 +712,15 @@ namespace BatteryRushArena.NetworkSpike
             DrawFilledRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
             DrawFilledRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
             DrawFilledRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+        }
+
+        private static void DrawHudCard(Rect rect, string label, string value, Color accentColor)
+        {
+            DrawFilledRect(rect, new Color(0.08f, 0.1f, 0.16f, 0.92f));
+            DrawFilledRect(new Rect(rect.x, rect.y, 6f, rect.height), accentColor);
+            DrawOutline(rect, new Color(0.29f, 0.36f, 0.48f, 1f), 1f);
+            GUI.Label(new Rect(rect.x + 12f, rect.y + 6f, rect.width - 18f, 16f), label);
+            GUI.Label(new Rect(rect.x + 12f, rect.y + 20f, rect.width - 18f, 16f), value);
         }
 
         private sealed class PlayerVisualState
