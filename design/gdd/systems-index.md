@@ -22,11 +22,11 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 | 1 | Match Lifecycle & Room State | Core | MVP | Draft | design/gdd/match-lifecycle-and-room-state.md | Network Session & Transport |
 | 2 | Network Session & Transport | Foundation | MVP | Draft | design/gdd/network-session-and-transport.md | — |
 | 3 | Player Controller & Input | Core | MVP | Draft | design/gdd/player-controller-and-input.md | Match Lifecycle & Room State |
-| 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Not Started | — | Match Lifecycle & Room State, Player Controller & Input |
-| 5 | Slow Shot & Trap Interaction | Gameplay | MVP | Not Started | — | Player Controller & Input, Arena Battery Economy & Scoring |
-| 6 | Results Persistence & Leaderboard | Persistence | MVP | Not Started | — | Match Lifecycle & Room State, Arena Battery Economy & Scoring |
-| 7 | HUD, Results, and Ranking UI | UI | MVP | Not Started | — | Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard |
-| 8 | Audio Feedback | Audio | Vertical Slice | Not Started | — | Match Lifecycle & Room State, Slow Shot & Trap Interaction |
+| 4 | Arena Battery Economy & Scoring | Gameplay | MVP | Draft | design/gdd/arena-battery-economy-and-scoring.md | Match Lifecycle & Room State, Player Controller & Input |
+| 5 | Slow Shot & Trap Interaction | Gameplay | MVP | Draft | design/gdd/slow-shot-and-trap-interaction.md | Player Controller & Input, Arena Battery Economy & Scoring |
+| 6 | Results Persistence & Leaderboard | Persistence | MVP | Draft | design/gdd/results-persistence-and-leaderboard.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring |
+| 7 | HUD, Results, and Ranking UI | UI | MVP | Draft | design/gdd/hud-results-and-ranking-ui.md | Match Lifecycle & Room State, Arena Battery Economy & Scoring, Results Persistence & Leaderboard |
+| 8 | Audio Feedback | Audio | Vertical Slice | Draft | design/gdd/audio-feedback.md | Match Lifecycle & Room State, Slow Shot & Trap Interaction |
 
 ---
 
@@ -135,12 +135,12 @@ The current architecture baseline now includes accepted ADR coverage for transpo
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 8 |
-| Design docs started | 4 |
+| Design docs started | 8 |
 | Design docs reviewed | 1 |
 | Design docs approved | 0 |
 | Systems with accepted ADR coverage | 8/8 |
-| MVP systems designed | 4/7 |
-| Vertical Slice systems designed | 0/1 |
+| MVP systems designed | 7/7 |
+| Vertical Slice systems designed | 1/1 |
 
 ---
 
