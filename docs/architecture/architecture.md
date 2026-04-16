@@ -156,7 +156,7 @@
 
 ### 4. Persistence and Leaderboard Flow
 1. Match Lifecycle creates a `MatchResultPayload` with unique match id.
-2. Match Persistence Gateway writes result asynchronously to MySQL.
+2. Results Persistence & Leaderboard writes the result asynchronously to MySQL through its internal persistence gateway.
 3. On success, server emits `PersistenceSucceeded`; on failure, emits `PersistenceFailed` and logs retry-safe diagnostics.
 4. UI displays results screen first, then leaderboard screen using queried leaderboard data.
 5. Leaderboard ordering uses deterministic sort: wins desc, best score desc, total matches asc, player name asc.
@@ -165,7 +165,7 @@
 1. Transport heartbeat failure (5 seconds without input/heartbeat) or socket close notifies server.
 2. Match Lifecycle marks disconnected player as forfeited if match is active; reconnect to the active match is not supported in MVP.
 3. Server finalizes result with `DisconnectForfeit` end reason.
-4. Persistence Gateway stores single final match record.
+4. Results Persistence & Leaderboard stores one final match record.
 5. Remaining clients see disconnect result and can return to lobby.
 
 ## API Boundaries
@@ -225,7 +225,7 @@ public interface IAudioCueRouter {
 
 **Invariants**
 - Only the server can mutate score, effect state, battery availability, or match state.
-- Only `ResultsPersistenceAndLeaderboard` may write to or query MySQL.
+- Only `Results Persistence & Leaderboard` may write to or query MySQL.
 - UI and Audio modules consume snapshots/events and never own competitive state.
 - Duplicate client messages must be safe to ignore or deduplicate by tick + player id.
 
