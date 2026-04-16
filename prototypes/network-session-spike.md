@@ -126,23 +126,22 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 - The next slice should convert these position snapshots into proper gameplay visuals so the client is no longer a pure debug HUD.
 
 
-## Findings — 2026-04-16 slow-shot and trap slice
+## Findings — 2026-04-17 visual presentation slice
 
 ### Evidence captured
-- External C# spike server builds successfully after the effect-system additions.
-- Unity client scripts compile successfully via `dotnet build My project/Assembly-CSharp.csproj`.
-- Live protocol smoke proved authoritative slow-shot and trap interaction behavior on top of the scoring loop.
+- Unity 6.3 batch compile completed successfully after the Unity-side arena preview/HUD changes (`My project/Logs/network-compile-batch.log`).
+- The Unity network spike runtime now derives player markers, active battery markers, trap zones, score/status summaries, countdown, and results overlays directly from authoritative room snapshots in `NetworkSpikeApp`.
+- The batch smoke assertions now validate the presentation-driving payloads as well: player positions, scoreboard rows, debuff/effect feed, saving status, and final results payloads.
 
 ### Observed results
-- **Slow shot applies a 35% slow to the opposing player** — PASS
-- **Trap requests are ignored while a stronger slow is active** — PASS
-- **Post-slow immunity is surfaced and blocks immediate reapplication** — PASS
-- **Trap applies after immunity expires** — PASS
-- **No score penalty is applied by slow/trap events** — PASS
+- **Authoritative room snapshots now drive a readable arena preview** — PASS
+- **Players, active batteries, trap zones, and result states are rendered without giving the client gameplay authority** — PASS
+- **Saving/results payloads expose persistence status and final score state for the client presentation** — PASS
+- **The spike remains runnable without extra scene wiring** — PASS
 
 ### Notes
-- The slice still uses spike-style direct effect requests (`fire_slow_shot`, `trigger_trap`) rather than full world-position hit/trap detection.
-- The next slice should replace debug-triggered effect application with route/position-based interaction and integrate richer HUD feedback around cooldowns and debuffs.
+- This slice intentionally keeps the presentation lightweight inside the existing runtime debug shell rather than introducing a full UI Toolkit screen stack yet.
+- A manual in-Editor sanity pass is still recommended to tune placement/readability, but the compile-verified presentation seam is now in place for the spike demo.
 
 
 ## Findings — 2026-04-16 slow-shot and trap slice
@@ -162,22 +161,3 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - This slice still uses spike-style direct requests (`fire_slow_shot`, `trigger_trap`) rather than full world-position hit/trap detection.
 - The next slice should convert from debug-triggered effects to route/position-driven gameplay interactions and then connect UI polish around cooldown/debuff feedback.
-
-
-## Findings — 2026-04-16 battery/scoring slice
-
-### Evidence captured
-- External C# spike server builds successfully after battery/scoring additions.
-- Unity project scripts compile successfully in batchmode after the scoring slice changes.
-- Live protocol smoke proved authoritative battery collection, score progression, and gameplay-driven match completion.
-
-### Observed results
-- **Active batteries are exposed to the client** — PASS
-- **Battery collection increments authoritative score** — PASS
-- **Battery respawn events occur after the configured delay** — PASS
-- **Target score ends the match with ** — PASS
-- **The room still transitions through Saving -> ResultsReady after real scoring-based completion** — PASS
-
-### Notes
-- The scoring slice is still a spike-style implementation and uses battery ids rather than full world-position pickup validation.
-- The next slice should connect real player-position-based pickup resolution and then integrate slow-shot/trap effects into contested routing.
