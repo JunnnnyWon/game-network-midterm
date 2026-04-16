@@ -45,7 +45,7 @@ def main() -> int:
         'mapping_doc_exists': (ROOT / '.codex' / 'docs' / 'source-surface-mapping.md').exists(),
         'orchestration_contract_exists': (ROOT / '.codex' / 'docs' / 'orchestration-contract.md').exists(),
         'migration_doc_exists': (ROOT / 'docs' / 'CODEX-MIGRATION.md').exists(),
-        'readme_mentions_codex': 'Codex / OMX Support' in (ROOT / 'README.md').read_text(),
+        'readme_mentions_codex': (('Codex-native port' in (ROOT / 'README.md').read_text()) and ('AGENTS.md' in (ROOT / 'README.md').read_text())),
         'orchestration_has_legacy_tokens': orchestration_has_legacy_tokens,
         'core_skill_legacy_tokens': core_skill_legacy_tokens,
         'release_checklist_exists': (ROOT / 'docs' / 'CODEX-RELEASE-CHECKLIST.md').exists(),

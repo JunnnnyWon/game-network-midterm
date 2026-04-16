@@ -1,369 +1,245 @@
 <p align="center">
-  <h1 align="center">Claude Code Game Studios <span style="font-size:0.7em;">(Codex Port)</span></h1>
+  <h1 align="center">Claude Code Game Studios — Codex Port</h1>
   <p align="center">
-    Turn a single Claude Code or Codex/OMX session into a full game development studio.
-    <br />
-    49 agents. 72 skills. One coordinated AI team.
+    A Codex-first, AGENTS.md-driven port of <strong>Claude Code Game Studios</strong>.<br/>
+    Turn one Codex CLI session into a structured game-dev studio with roles, workflows, QA gates, and reusable docs.
   </p>
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <a href=".claude/agents"><img src="https://img.shields.io/badge/agents-49-blueviolet" alt="49 Agents"></a>
-  <a href=".claude/skills"><img src="https://img.shields.io/badge/skills-72-green" alt="72 Skills"></a>
-  <a href=".claude/hooks"><img src="https://img.shields.io/badge/hooks-12-orange" alt="12 Hooks"></a>
-  <a href=".claude/rules"><img src="https://img.shields.io/badge/rules-11-red" alt="11 Rules"></a>
-  <a href="https://docs.anthropic.com/en/docs/claude-code"><img src="https://img.shields.io/badge/built%20for-Claude%20Code-f5f5f5?logo=anthropic" alt="Built for Claude Code"></a>
-  <img src="https://img.shields.io/badge/codex%20port-AGENTS%20%2B%20.codex-412991" alt="Codex port available">
-  <a href="https://www.buymeacoffee.com/donchitos3"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20this%20project-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
-  <a href="https://github.com/sponsors/Donchitos"><img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?logo=githubsponsors&logoColor=white" alt="GitHub Sponsors"></a>
+  <img src="https://img.shields.io/badge/runtime-Codex%20CLI-412991" alt="Codex CLI" />
+  <img src="https://img.shields.io/badge/config-AGENTS.md-blue" alt="AGENTS.md" />
+  <img src="https://img.shields.io/badge/skills-72-green" alt="72 skills" />
+  <img src="https://img.shields.io/badge/agents-49-blueviolet" alt="49 agents" />
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" />
 </p>
+
+> [!IMPORTANT]
+> This repository is the **Codex-native port** of the original upstream project:
+> [`Donchitos/Claude-Code-Game-Studios`](https://github.com/Donchitos/Claude-Code-Game-Studios).
+>
+> - **Active runtime surface for Codex:** `AGENTS.md`, `.codex/skills/`, `.codex/agents/`
+> - **Legacy/source reference:** `.claude/`, `CLAUDE.md`
+>
+> If you are using **Codex CLI**, start from this README and `docs/CODEX-CLI-QUICKSTART.md`.
 
 ---
 
-## Codex / OMX Support
+## What is this?
 
-This repository now includes a **Codex-native porting layer** alongside the original Claude-first materials.
+This repo gives Codex a **structured game studio operating system** instead of a blank prompt.
 
-### Active runtime surfaces in Codex
+Instead of one generic assistant trying to do everything, you get:
+- a studio hierarchy of specialized roles
+- workflow skills for concept, design, architecture, QA, release, and team coordination
+- documentation conventions for GDDs, ADRs, UX, and production artifacts
+- repo-local verification scripts and release evidence for the active Codex layer
+
+The goal is simple:
+
+> **Use Codex CLI like a disciplined game-dev studio, not a random chat tab.**
+
+---
+
+## Why this port exists
+
+The upstream template was built for **Claude Code**. It had strong workflow design, but its runtime assumptions were Claude-specific:
+- `CLAUDE.md`
+- `.claude/skills/*`
+- `.claude/agents/*`
+- `AskUserQuestion`
+- Claude hook/runtime expectations
+
+This port keeps the studio design, but makes the repository **usable from Codex CLI** by introducing:
 - `AGENTS.md`
 - `.codex/skills/`
 - `.codex/agents/`
-- `.codex/docs/runtime-contract.md`
+- Codex runtime + orchestration contracts
+- Codex-specific smoke/release evidence
 
-### Porting stance
-- Preserve **workflow parity** first
-- Preserve **command / structure parity** second
-- Allow **Codex-required changes** when necessary for correct use
+---
 
-### Release-gate skills for the Codex port
+## What you get
+
+| Category | Count | Notes |
+|---|---:|---|
+| Codex agents | 49 | Project-local `.codex/agents/*.toml` ports |
+| Codex skills | 72 | Project-local `.codex/skills/*/SKILL.md` |
+| Release-gate skills | 5 | The currently validated Codex-first path |
+| QA evidence artifacts | 6+ | Smoke, audit, release-gate proof |
+| Scoped AGENTS files | 5 | Root + directory-scoped Codex guidance |
+
+### Current release-gate skills
+These are the five workflows currently treated as the **validated Codex path**:
 - `start`
 - `brainstorm`
 - `setup-engine`
 - `design-system`
 - `create-architecture`
 
-The original `.claude/` directory is still kept as upstream/source reference during the migration.
-See [`docs/CODEX-MIGRATION.md`](docs/CODEX-MIGRATION.md) for the Codex-side mapping summary.
-See [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md) for the fastest Codex CLI usage path.
+---
+
+## Quickstart
+
+### 1) Clone the repo
+```bash
+git clone https://github.com/JunnnnyWon/Claude-Code-Game-Studios.git
+cd Claude-Code-Game-Studios
+```
+
+### 2) Run verification first
+```bash
+python3 tools/codex/verify_port.py
+python3 tools/codex/qa_smoke.py
+python3 tools/codex/core5_audit.py
+```
+
+### 3) Launch Codex CLI
+```bash
+codex
+```
+
+### 4) Start the workflow
+Inside Codex:
+```text
+$start
+```
+
+### 5) Recommended first sequence
+```text
+$start
+$brainstorm open
+$setup-engine godot 4.6
+$design-system combat-system
+$create-architecture
+```
+
+For a dedicated usage guide, see:
+- [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md)
 
 ---
 
-## Why This Exists
+## How to think about the repo
 
-Building a game solo with AI is powerful — but a single chat session has no structure. No one stops you from hardcoding magic numbers, skipping design docs, or writing spaghetti code. There's no QA pass, no design review, no one asking "does this actually fit the game's vision?"
+### Active Codex surfaces
+Use these first:
+1. `AGENTS.md`
+2. `.codex/docs/runtime-contract.md`
+3. `.codex/skills/<skill>/SKILL.md`
+4. `.codex/agents/*.toml`
+5. `docs/CODEX-CLI-QUICKSTART.md`
 
-**Claude Code Game Studios** — now with a Codex-native porting layer — solves this by giving your AI session the structure of a real studio. Instead of one general-purpose assistant, you get 49 specialized agents organized into a studio hierarchy — directors who guard the vision, department leads who own their domains, and specialists who do the hands-on work. Each agent has defined responsibilities, escalation paths, and quality gates.
-
-The result: you still make every decision, but now you have a team that asks the right questions, catches mistakes early, and keeps your project organized from first brainstorm to launch.
-
----
-
-## Table of Contents
-
-- [What's Included](#whats-included)
-- [Studio Hierarchy](#studio-hierarchy)
-- [Skills / Legacy Slash Commands](#skills--legacy-slash-commands)
-- [Getting Started](#getting-started)
-- [Upgrading](#upgrading)
-- [Project Structure](#project-structure)
-- [How It Works](#how-it-works)
-- [Design Philosophy](#design-philosophy)
-- [Customization](#customization)
-- [Platform Support](#platform-support)
-- [Community](#community)
-- [Supporting This Project](#supporting-this-project)
-- [License](#license)
+### Legacy reference surfaces
+These are preserved for lineage and incremental migration:
+- `CLAUDE.md`
+- `.claude/`
+- Claude-specific historical notes in older docs
 
 ---
 
-## What's Included
+## Validation status
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| **Agents** | 49 | Specialized subagents across design, programming, art, audio, narrative, QA, and production |
-| **Skills** | 72 | Skills/workflows for every workflow phase (`start`, `design-system`, `create-epics`, `create-stories`, `dev-story`, `story-done`, etc.), with legacy slash aliases preserved where practical |
-| **Hooks** | 12 | Automated validation on commits, pushes, asset changes, session lifecycle, agent audit trail, and gap detection |
-| **Rules** | 11 | Path-scoped coding standards enforced when editing gameplay, engine, AI, UI, network code, and more |
-| **Templates** | 39 | Document templates for GDDs, UX specs, ADRs, sprint plans, HUD design, accessibility, and more |
+### What is already proven
+The repo has durable evidence for the active Codex layer:
+- `tools/codex/verify_port.py`
+- `tools/codex/qa_smoke.py`
+- `tools/codex/core5_audit.py`
+- `production/qa/evidence/codex-port-smoke-2026-04-16.md`
+- `production/qa/evidence/codex-pipeline-audit-2026-04-16.md`
+- `production/qa/evidence/codex-core5-proof-2026-04-16.md`
 
-## Studio Hierarchy
+### What that means in practice
+This port is **usable in Codex CLI** for the intended release gate:
+- active runtime surface exists
+- core 5 workflows are present and checked
+- active Codex skills/agents parse cleanly
+- orchestration hygiene checks pass
+- onboarding/usage guidance exists in-repo
 
-Agents are organized into three tiers, matching how real studios operate:
+### What is not yet claimed
+This repo does **not** claim that all 72 migrated workflows have been fully runtime-proven end-to-end in live Codex sessions.
 
-```
-Tier 1 — Directors (frontier / strategic review)
-  creative-director    technical-director    producer
+So the honest status is:
+- **Codex-usable:** yes
+- **Release-gate approved:** yes
+- **Every migrated workflow fully runtime-proven:** not yet
 
-Tier 2 — Department Leads (standard delivery / synthesis)
-  game-designer        lead-programmer       art-director
-  audio-director       narrative-director    qa-lead
-  release-manager      localization-lead
+---
 
-Tier 3 — Specialists (standard / fast lanes)
-  gameplay-programmer  engine-programmer     ai-programmer
-  network-programmer   tools-programmer      ui-programmer
-  systems-designer     level-designer        economy-designer
-  technical-artist     sound-designer        writer
-  world-builder        ux-designer           prototyper
-  performance-analyst  devops-engineer       analytics-engineer
-  security-engineer    qa-tester             accessibility-specialist
-  live-ops-designer    community-manager
-```
+## Workflow model
 
-### Engine Specialists
+The studio flow still follows the upstream philosophy:
 
-The template includes agent sets for all three major engines. Use the set that matches your project:
+1. **Concept**
+2. **Systems Design**
+3. **Technical Setup**
+4. **Pre-Production**
+5. **Production**
+6. **Polish**
+7. **Release**
 
-| Engine | Lead Agent | Sub-Specialists |
-|--------|-----------|-----------------|
-| **Godot 4** | `godot-specialist` | GDScript, Shaders, GDExtension |
-| **Unity** | `unity-specialist` | DOTS/ECS, Shaders/VFX, Addressables, UI Toolkit |
-| **Unreal Engine 5** | `unreal-specialist` | GAS, Blueprints, Replication, UMG/CommonUI |
+And the collaboration rule remains:
 
-## Skills / Legacy Slash Commands
+> **Question → Options → Decision → Draft → Approval**
 
-The original template exposed these as Claude slash commands. In the Codex port,
-use the same names as **skills/workflows**; treat the slash-prefixed forms below
-as legacy aliases/reference names:
+This matters because the port is not just about file conversion — it is about preserving the workflow discipline in Codex.
 
-**Onboarding & Navigation**
-`/start` `/help` `/project-stage-detect` `/setup-engine` `/adopt`
+---
 
-**Game Design**
-`/brainstorm` `/map-systems` `/design-system` `/quick-design` `/review-all-gdds` `/propagate-design-change`
+## Project structure
 
-**Art & Assets**
-`/art-bible` `/asset-spec` `/asset-audit`
-
-**UX & Interface Design**
-`/ux-design` `/ux-review`
-
-**Architecture**
-`/create-architecture` `/architecture-decision` `/architecture-review` `/create-control-manifest`
-
-**Stories & Sprints**
-`/create-epics` `/create-stories` `/dev-story` `/sprint-plan` `/sprint-status` `/story-readiness` `/story-done` `/estimate`
-
-**Reviews & Analysis**
-`/design-review` `/code-review` `/balance-check` `/content-audit` `/scope-check` `/perf-profile` `/tech-debt` `/gate-check` `/consistency-check`
-
-**QA & Testing**
-`/qa-plan` `/smoke-check` `/soak-test` `/regression-suite` `/test-setup` `/test-helpers` `/test-evidence-review` `/test-flakiness` `/skill-test` `/skill-improve`
-
-**Production**
-`/milestone-review` `/retrospective` `/bug-report` `/bug-triage` `/reverse-document` `/playtest-report`
-
-**Release**
-`/release-checklist` `/launch-checklist` `/changelog` `/patch-notes` `/hotfix`
-
-**Creative & Content**
-`/prototype` `/onboard` `/localize`
-
-**Team Orchestration** (coordinate multiple agents on a single feature)
-`/team-combat` `/team-narrative` `/team-ui` `/team-release` `/team-polish` `/team-audio` `/team-level` `/team-live-ops` `/team-qa`
-
-## Getting Started
-
-### Prerequisites
-
-- [Git](https://git-scm.com/)
-- Codex / OMX (for the active Codex-native ported surface)
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`) for the original legacy flow
-- **Recommended**: [jq](https://jqlang.github.io/jq/) (for hook validation) and Python 3 (for JSON validation)
-
-All hooks fail gracefully if optional tools are missing — nothing breaks, you just lose validation.
-
-### Setup
-
-1. **Clone or use as template**:
-
-   ```bash
-   git clone https://github.com/Donchitos/Claude-Code-Game-Studios.git my-game
-   cd my-game
-   ```
-
-2. **Choose your runtime**:
-
-   **Claude-first flow**
-
-   ```bash
-   claude
-   ```
-
-   **Codex / OMX flow**
-
-   Open Codex in the repo root and treat `AGENTS.md` + `.codex/` as the active
-   runtime surfaces.
-
-If you want to use the Codex-native ported surface instead of the original Claude-first flow:
-
-1. Open Codex in the repo root.
-2. Treat `AGENTS.md` and `.codex/` as the active runtime surfaces.
-3. Start with the `start` skill (or ask Codex to use the `start` workflow).
-4. Use the release-gate skills first while the broader migration continues:
-   - `start`
-   - `brainstorm`
-   - `setup-engine`
-   - `design-system`
-   - `create-architecture`
-
-The original `.claude/` layer remains available as migration reference, but it is not the active runtime contract for Codex.
-
-3. **Run `start` (or legacy `/start`)** — the system asks where you are (no idea, vague concept,
-   clear design, existing work) and guides you to the right workflow. No assumptions.
-
-   Or jump directly to a specific skill if you already know what you need:
-   - `brainstorm` — explore game ideas from scratch
-   - `setup-engine godot 4.6` — configure your engine if you already know
-   - `project-stage-detect` — analyze an existing project
-
-## Upgrading
-
-Already using an older version of this template? See [UPGRADING.md](UPGRADING.md)
-for step-by-step migration instructions, a breakdown of what changed between
-versions, and which files are safe to overwrite vs. which need a manual merge.
-
-## Project Structure
-
-```
-AGENTS.md                           # Codex-native master configuration
-CLAUDE.md                           # Original Claude-first master configuration (source reference)
-.codex/                             # Codex-native skills, agents, and runtime docs
-.claude/
-  settings.json                     # Hooks, permissions, safety rules
-  agents/                           # 49 agent definitions (markdown + YAML frontmatter)
-  skills/                           # 72 legacy Claude-first skills (subdirectory per skill)
-  hooks/                            # 12 hook scripts (bash, cross-platform)
-  rules/                            # 11 path-scoped coding standards
-  statusline.sh                     # Status line script (context%, model, stage, epic breadcrumb)
-  docs/
-    workflow-catalog.yaml           # 7-phase pipeline definition (read by /help)
-    templates/                      # 39 document templates
+```text
+AGENTS.md                           # Codex-native root runtime contract
+CLAUDE.md                           # Legacy Claude-first reference
+.codex/                             # Active Codex-native skills, agents, docs
+.claude/                            # Upstream/legacy reference surfaces
 src/                                # Game source code
-assets/                             # Art, audio, VFX, shaders, data files
-design/                             # GDDs, narrative docs, level designs
-docs/                               # Technical documentation and ADRs
-tests/                              # Test suites (unit, integration, performance, playtest)
-tools/                              # Build and pipeline tools
-prototypes/                         # Throwaway prototypes (isolated from src/)
-production/                         # Sprint plans, milestones, release tracking
+assets/                             # Art, audio, VFX, shaders, data
+design/                             # GDDs, narrative docs, levels, UX
+docs/                               # Architecture, migration, workflow docs
+tests/                              # Test suites
+tools/                              # Verification and helper scripts
+prototypes/                         # Throwaway prototypes
+production/                         # QA evidence, sprint/release artifacts
 ```
 
-## How It Works
+---
 
-### Agent Coordination
+## Repo-specific Codex docs
 
-Agents follow a structured delegation model:
-
-1. **Vertical delegation** — directors delegate to leads, leads delegate to specialists
-2. **Horizontal consultation** — same-tier agents can consult each other but can't make binding cross-domain decisions
-3. **Conflict resolution** — disagreements escalate up to the shared parent (`creative-director` for design, `technical-director` for technical)
-4. **Change propagation** — cross-department changes are coordinated by `producer`
-5. **Domain boundaries** — agents don't modify files outside their domain without explicit delegation
-
-### Collaborative, Not Autonomous
-
-This is **not** an auto-pilot system. Every agent follows a strict collaboration protocol:
-
-1. **Ask** — agents ask questions before proposing solutions
-2. **Present options** — agents show 2-4 options with pros/cons
-3. **You decide** — the user always makes the call
-4. **Draft** — agents show work before finalizing
-5. **Approve** — nothing gets written without your sign-off
-
-You stay in control. The agents provide structure and expertise, not autonomy.
-
-### Automated Safety
-
-**Hooks** run automatically on every session:
-
-| Hook | Trigger | What It Does |
-|------|---------|--------------|
-| `validate-commit.sh` | PreToolUse (Bash) | Checks for hardcoded values, TODO format, JSON validity, design doc sections — exits early if the command is not `git commit` |
-| `validate-push.sh` | PreToolUse (Bash) | Warns on pushes to protected branches — exits early if the command is not `git push` |
-| `validate-assets.sh` | PostToolUse (Write/Edit) | Validates naming conventions and JSON structure — exits early if the file is not in `assets/` |
-| `session-start.sh` | Session open | Shows current branch and recent commits for orientation |
-| `detect-gaps.sh` | Session open | Detects fresh projects (suggests `/start`) and missing design docs when code or prototypes exist |
-| `pre-compact.sh` | Before compaction | Preserves session progress notes |
-| `post-compact.sh` | After compaction | Reminds Claude to restore session state from `active.md` |
-| `notify.sh` | Notification event | Shows Windows toast notification via PowerShell |
-| `session-stop.sh` | Session close | Archives `active.md` to session log and records git activity |
-| `log-agent.sh` | Agent spawned | Audit trail start — logs subagent invocation |
-| `log-agent-stop.sh` | Agent stops | Audit trail stop — completes subagent record |
-| `validate-skill-change.sh` | PostToolUse (Write/Edit) | Advises running `/skill-test` after any `.claude/skills/` change |
-
-> **Note**: `validate-commit.sh`, `validate-assets.sh`, and `validate-skill-change.sh` fire on every Bash/Write tool call and exit immediately (exit 0) when the command or file path is not relevant. This is normal hook behavior — not a performance concern.
-
-**Permission rules** in `settings.json` auto-allow safe operations (git status, test runs) and block dangerous ones (force push, `rm -rf`, reading `.env` files).
-
-### Path-Scoped Rules
-
-Coding standards are automatically enforced based on file location:
-
-| Path | Enforces |
-|------|----------|
-| `src/gameplay/**` | Data-driven values, delta time usage, no UI references |
-| `src/core/**` | Zero allocations in hot paths, thread safety, API stability |
-| `src/ai/**` | Performance budgets, debuggability, data-driven parameters |
-| `src/networking/**` | Server-authoritative, versioned messages, security |
-| `src/ui/**` | No game state ownership, localization-ready, accessibility |
-| `design/gdd/**` | Required 8 sections, formula format, edge cases |
-| `tests/**` | Test naming, coverage requirements, fixture patterns |
-| `prototypes/**` | Relaxed standards, README required, hypothesis documented |
-
-## Design Philosophy
-
-This template is grounded in professional game development practices:
-
-- **MDA Framework** — Mechanics, Dynamics, Aesthetics analysis for game design
-- **Self-Determination Theory** — Autonomy, Competence, Relatedness for player motivation
-- **Flow State Design** — Challenge-skill balance for player engagement
-- **Bartle Player Types** — Audience targeting and validation
-- **Verification-Driven Development** — Tests first, then implementation
-
-## Customization
-
-This is a **template**, not a locked framework. Everything is meant to be customized:
-
-- **Add/remove agents** — delete agent files you don't need, add new ones for your domains
-- **Edit agent prompts** — tune agent behavior, add project-specific knowledge
-- **Modify skills** — adjust workflows to match your team's process
-- **Add rules** — create new path-scoped rules for your project's directory structure
-- **Tune hooks** — adjust validation strictness, add new checks
-- **Pick your engine** — use the Godot, Unity, or Unreal agent set (or none)
-- **Set review intensity** — `full` (all director gates), `lean` (phase gates only), or `solo` (none). Set during `start` (legacy `/start`) or edit `production/review-mode.txt`. Override per-run with `--review solo` on any skill.
-
-## Platform Support
-
-Tested on **Windows 10** with Git Bash. All hooks use POSIX-compatible patterns (`grep -E`, not `grep -P`) and include fallbacks for missing tools. Works on macOS and Linux without modification.
-
-## Community
-
-- **Discussions** — [GitHub Discussions](https://github.com/Donchitos/Claude-Code-Game-Studios/discussions) for questions, ideas, and showcasing what you've built
-- **Issues** — [Bug reports and feature requests](https://github.com/Donchitos/Claude-Code-Game-Studios/issues)
+- [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md)
+- [`docs/CODEX-MIGRATION.md`](docs/CODEX-MIGRATION.md)
+- [`docs/CODEX-RELEASE-CHECKLIST.md`](docs/CODEX-RELEASE-CHECKLIST.md)
+- [`.codex/docs/runtime-contract.md`](.codex/docs/runtime-contract.md)
+- [`.codex/docs/orchestration-contract.md`](.codex/docs/orchestration-contract.md)
+- [`.codex/docs/source-surface-mapping.md`](.codex/docs/source-surface-mapping.md)
 
 ---
 
-## Supporting This Project
+## Contributing
 
-Claude Code Game Studios is free and open source. If it saves you time or helps you ship your game, consider supporting continued development:
+If you want to improve this port, the highest-value areas are:
+1. **runtime-proving more workflows beyond the core 5**
+2. **making team/orchestration flows more deeply Codex-native**
+3. **reducing Claude-first historical wording in non-critical docs**
+4. **expanding repo-local QA evidence**
 
-<p>
-  <a href="https://www.buymeacoffee.com/donchitos3"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee"></a>
-  &nbsp;
-  <a href="https://github.com/sponsors/Donchitos"><img src="https://img.shields.io/badge/GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors"></a>
-</p>
-
-- **[Buy Me a Coffee](https://www.buymeacoffee.com/donchitos3)** — one-time support
-- **[GitHub Sponsors](https://github.com/sponsors/Donchitos)** — recurring support through GitHub
-
-Sponsorships help fund time spent maintaining skills, adding new agents, keeping up with Claude Code and engine API changes, and responding to community issues.
+If you change the active Codex surface, refresh the smoke evidence:
+```bash
+python3 tools/codex/verify_port.py
+python3 tools/codex/qa_smoke.py
+python3 tools/codex/core5_audit.py
+```
 
 ---
 
-*Originally built for Claude Code. Now actively ported for Codex / OMX as well — contributions welcome via [GitHub Discussions](https://github.com/Donchitos/Claude-Code-Game-Studios/discussions).*
+## Credits
+
+- **Original upstream project:** [`Donchitos/Claude-Code-Game-Studios`](https://github.com/Donchitos/Claude-Code-Game-Studios)
+- **This fork:** Codex-native port and release-gate adaptation by [`JunnnnyWon`](https://github.com/JunnnnyWon)
+
+---
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [`LICENSE`](LICENSE).
