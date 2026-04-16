@@ -4,6 +4,10 @@
 > version-to-version upgrade history. For the Codex-native port surfaces and
 > migration mapping, start with `docs/CODEX-MIGRATION.md`, `AGENTS.md`, and
 > `.codex/docs/runtime-contract.md`.
+>
+> Historical references below to `Task`, `AskUserQuestion`, Haiku/Sonnet/Opus,
+> and Claude-only setup are describing the original template behavior unless a
+> section explicitly says it was ported for Codex.
 
 This guide covers upgrading your existing game project repo from one version
 of the template to the next.

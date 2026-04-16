@@ -244,7 +244,7 @@ Question → Options → Decision → Draft → Approval
 ```
 
 > **Note:** These examples show the collaborative pattern as conversational text.
-> In practice, agents now use the `AskUserQuestion` tool at decision points to
+> In practice, agents in the original Claude flow used `AskUserQuestion` at decision points; the Codex port maps that to structured input when available or one concise question otherwise to
 > present structured option pickers (with labels, descriptions, and multi-select).
 > The pattern is **Explain → Capture**: agents explain their analysis in
 > conversation first, then present a structured UI picker for the user's decision.

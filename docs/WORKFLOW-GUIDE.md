@@ -8,7 +8,7 @@
 > **How to go from zero to a shipped game using the Agent Architecture.**
 >
 > This guide walks you through every phase of game development using the
-> 48-agent system, 68 slash commands, and 12 automated hooks. It assumes you
+> 48-agent system, 72 skills/workflows, and migration-era validation hooks. It assumes you
 > have Claude Code or Codex/OMX available and are working from the project root.
 >
 > The pipeline has 7 phases. Each phase has a formal gate (`/gate-check`)
@@ -75,7 +75,7 @@ If you're using the original Claude-first flow, start a new Claude session and
 you should see output from the `session-start.sh` hook:
 
 ```
-=== Claude Code Game Studios -- Session Context ===
+=== Legacy Claude Session Context (Claude-first flow only) ===
 Branch: main
 Recent commits:
   abc1234 Initial commit
@@ -1191,9 +1191,9 @@ Every agent interaction follows this pattern:
 See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for the full protocol with
 examples.
 
-### The AskUserQuestion Tool
+### Structured Decision Capture (legacy AskUserQuestion mapping)
 
-Agents use the `AskUserQuestion` tool for structured option presentation.
+In the original Claude flow, agents used `AskUserQuestion` for structured option presentation. In the Codex port, the equivalent rule is: use structured input when available, otherwise ask one concise question at a time.
 The pattern is Explain then Capture: full analysis in conversation text first,
 then a clean UI picker for the decision. Use it for design choices,
 architecture decisions, and strategic questions. Do not use it for open-ended
