@@ -345,6 +345,12 @@ namespace BatteryRushArena.Editor
                     Debug.LogError("UI Toolkit results overlay did not become visible for the results snapshot.");
                     return false;
                 }
+
+                if (!app.ToolkitUsesAuthoredAssetsForTesting)
+                {
+                    Debug.LogError("UI Toolkit results overlay did not load from authored assets.");
+                    return false;
+                }
             }
             finally
             {
@@ -404,6 +410,12 @@ namespace BatteryRushArena.Editor
                 if (!app.ToolkitOverlayBuiltForTesting || !app.ToolkitPreMatchVisibleForTesting)
                 {
                     Debug.LogError("UI Toolkit pre-match overlay did not become visible for the authoritative pre-match snapshot.");
+                    return false;
+                }
+
+                if (!app.ToolkitUsesAuthoredAssetsForTesting)
+                {
+                    Debug.LogError("UI Toolkit pre-match overlay did not load from authored assets.");
                     return false;
                 }
 
@@ -468,6 +480,12 @@ namespace BatteryRushArena.Editor
                 if (!app.ToolkitOverlayBuiltForTesting || !app.ToolkitHudVisibleForTesting)
                 {
                     Debug.LogError("UI Toolkit active HUD did not build or become visible for the active snapshot.");
+                    return false;
+                }
+
+                if (!app.ToolkitUsesAuthoredAssetsForTesting)
+                {
+                    Debug.LogError("UI Toolkit active HUD did not load from authored assets.");
                     return false;
                 }
 

@@ -238,3 +238,21 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - The IMGUI shell still exists as a bounded debug surface, but the core pre-match flow no longer depends on it as the only player-facing path.
 - The UI Toolkit pre-match layer is still runtime-built scaffolding; a later slice can move it into authored UXML/USS assets without changing the authoritative state contract.
+
+
+## Findings — 2026-04-17 authored UI Toolkit assets slice
+
+### Evidence captured
+- Unity client scripts compile successfully after adding authored UXML/USS assets for the spike runtime UI under `My project/Assets/Resources/NetworkSpikeUI/`.
+- `NetworkSpikeApp` now loads the runtime UI Toolkit overlay from the authored resource path `NetworkSpikeUI/NetworkSpikeOverlay` instead of depending only on code-built layout scaffolding.
+- `NetworkSpikeBatchSmoke` now asserts that the pre-match, Active HUD, and results overlays all report `ToolkitUsesAuthoredAssetsForTesting == true`.
+
+### Observed results
+- **The spike now has authored UXML/USS assets for its runtime UI flow** — PASS
+- **Pre-match, Active HUD, and results overlays still bind to authoritative snapshot data through the same runtime contract** — PASS
+- **Existing scene-backed world presentation remains intact** — PASS
+- **Client/server builds remain green after the UI asset migration** — PASS
+
+### Notes
+- The spike still keeps bounded IMGUI debug affordances, but the core runtime UI no longer has to be constructed entirely from C# layout code.
+- A later slice can continue by reducing the remaining IMGUI shell and/or adding authored leaderboard UI assets on top of this asset-backed Toolkit seam.

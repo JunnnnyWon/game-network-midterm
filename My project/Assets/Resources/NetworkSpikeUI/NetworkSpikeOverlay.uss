@@ -1,0 +1,138 @@
+.root {
+    width: 100%;
+    height: 100%;
+}
+
+.panel {
+    background-color: rgba(20, 28, 43, 0.94);
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-color: rgb(99, 140, 191);
+    border-right-color: rgb(99, 140, 191);
+    border-top-color: rgb(99, 140, 191);
+    border-bottom-color: rgb(99, 140, 191);
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.prematch-panel {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 420px;
+}
+
+.panel-title {
+    font-size: 20px;
+    color: rgb(255, 255, 255);
+    unity-font-style: bold;
+}
+
+.body-text {
+    margin-top: 6px;
+    color: rgb(224, 235, 255);
+    white-space: normal;
+}
+
+.field {
+    margin-top: 10px;
+}
+
+.button-row {
+    flex-direction: row;
+    margin-top: 10px;
+}
+
+.action-button {
+    margin-right: 6px;
+}
+
+.ready-button {
+    margin-top: 10px;
+}
+
+.countdown-label {
+    margin-top: 10px;
+    font-size: 18px;
+    color: rgb(255, 237, 128);
+    unity-font-style: bold;
+}
+
+.active-overlay {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+}
+
+.hud-card {
+    position: absolute;
+    width: 220px;
+    height: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    background-color: rgba(18, 26, 41, 0.9);
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-color: rgb(79, 107, 148);
+    border-right-color: rgb(79, 107, 148);
+    border-top-color: rgb(79, 107, 148);
+    border-bottom-color: rgb(79, 107, 148);
+}
+
+.hud-card-left {
+    left: 0;
+    top: 0;
+}
+
+.hud-card-right {
+    left: 228px;
+    top: 0;
+}
+
+.hud-card-secondary-row {
+    top: 80px;
+}
+
+.hud-card-title {
+    font-size: 11px;
+    color: rgb(184, 209, 242);
+    unity-font-style: bold;
+}
+
+.hud-card-value {
+    margin-top: 6px;
+    font-size: 14px;
+    color: rgb(255, 255, 255);
+    white-space: normal;
+}
+
+.results-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.42);
+}
+
+.results-panel {
+    width: 360px;
+}
+
+.results-score {
+    margin-top: 8px;
+    color: rgb(242, 247, 255);
+    unity-font-style: bold;
+}

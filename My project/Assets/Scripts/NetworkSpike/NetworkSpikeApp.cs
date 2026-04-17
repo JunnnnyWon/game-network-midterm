@@ -26,6 +26,7 @@ namespace BatteryRushArena.NetworkSpike
         private const float ToolkitMargin = 16f;
         private const float ToolkitCardWidth = 220f;
         private const float ToolkitCardHeight = 72f;
+        private const string ToolkitOverlayResourcePath = "NetworkSpikeUI/NetworkSpikeOverlay";
         private static readonly Vector2[] BatterySpawnPreview =
         {
             new(0f, 0f),
@@ -69,6 +70,8 @@ namespace BatteryRushArena.NetworkSpike
         private SpriteRenderer[] _trapSceneRenderers = Array.Empty<SpriteRenderer>();
         private UIDocument _uiDocument;
         private PanelSettings _panelSettings;
+        private VisualTreeAsset _toolkitOverlayAsset;
+        private StyleSheet _toolkitOverlayStyleSheet;
         private VisualElement _uiRoot;
         private VisualElement _preMatchOverlay;
         private VisualElement _activeHudOverlay;
@@ -91,6 +94,7 @@ namespace BatteryRushArena.NetworkSpike
         private Button _toolkitJoinButton;
         private Button _toolkitReadyButton;
         private bool _suppressToolkitFieldCallbacks;
+        private bool _toolkitUsesAuthoredAssets;
         private static Sprite _solidSprite;
 
         private void Awake()
@@ -550,6 +554,8 @@ namespace BatteryRushArena.NetworkSpike
 
         public bool ToolkitOverlayBuiltForTesting => _uiRoot != null;
 
+        public bool ToolkitUsesAuthoredAssetsForTesting => _toolkitUsesAuthoredAssets;
+
         public string ToolkitPreMatchTitleForTesting => _toolkitPreMatchTitleLabel?.text ?? string.Empty;
 
         public string ToolkitPreMatchMembersForTesting => _toolkitPreMatchMembersLabel?.text ?? string.Empty;
@@ -909,6 +915,112 @@ namespace BatteryRushArena.NetworkSpike
         }
 
         private void BuildUiToolkitOverlay()
+        {
+            _toolkitOverlayAsset ??= Resources.Load<VisualTreeAsset>(ToolkitOverlayResourcePath);
+            _toolkitOverlayStyleSheet ??= Resources.Load<StyleSheet>(ToolkitOverlayResourcePath);
+            _toolkitUsesAuthoredAssets = _toolkitOverlayAsset != null;
+
+            if (_toolkitUsesAuthoredAssets)
+            {
+                BuildAuthoredUiToolkitOverlay();
+                return;
+            }
+
+            BuildProceduralUiToolkitOverlay();
+        }
+
+        private void BuildAuthoredUiToolkitOverlay()
+        {
+            _uiRoot.Clear();
+            _uiRoot.style.flexGrow = 1f;
+            _uiRoot.pickingMode = PickingMode.Ignore;
+            if (_toolkitOverlayStyleSheet != null && !_uiRoot.styleSheets.Contains(_toolkitOverlayStyleSheet))
+            {
+                _uiRoot.styleSheets.Add(_toolkitOverlayStyleSheet);
+            }
+
+            _toolkitOverlayAsset.CloneTree(_uiRoot);
+            _preMatchOverlay = _uiRoot.Q<VisualElement>("prematch-overlay");
+            _activeHudOverlay = _uiRoot.Q<VisualElement>("active-hud-overlay");
+            _resultsOverlay = _uiRoot.Q<VisualElement>("results-overlay");
+            _toolkitPreMatchTitleLabel = _uiRoot.Q<Label>("prematch-title");
+            _toolkitPreMatchSummaryLabel = _uiRoot.Q<Label>("prematch-summary");
+            _toolkitPlayerNameField = _uiRoot.Q<TextField>("player-name-field");
+            _toolkitRoomCodeField = _uiRoot.Q<TextField>("room-code-field");
+            _toolkitConnectButton = _uiRoot.Q<Button>("connect-button");
+            _toolkitCreateButton = _uiRoot.Q<Button>("create-button");
+            _toolkitJoinButton = _uiRoot.Q<Button>("join-button");
+            _toolkitPreMatchMembersLabel = _uiRoot.Q<Label>("prematch-members");
+            _toolkitReadyButton = _uiRoot.Q<Button>("ready-button");
+            _toolkitCountdownLabel = _uiRoot.Q<Label>("countdown-label");
+            _toolkitTopLabel = _uiRoot.Q<Label>("toolkit-top-label");
+            _toolkitScoreLabel = _uiRoot.Q<Label>("toolkit-score-label");
+            _toolkitCooldownLabel = _uiRoot.Q<Label>("toolkit-cooldown-label");
+            _toolkitEffectLabel = _uiRoot.Q<Label>("toolkit-effect-label");
+            _toolkitResultsTitleLabel = _uiRoot.Q<Label>("toolkit-results-title-label");
+            _toolkitResultsScoreLabel = _uiRoot.Q<Label>("toolkit-results-score-label");
+            _toolkitResultsDetailLabel = _uiRoot.Q<Label>("toolkit-results-detail-label");
+
+            _toolkitPlayerNameField?.RegisterValueChangedCallback(evt =>
+            {
+                if (!_suppressToolkitFieldCallbacks)
+                {
+                    _playerName = evt.newValue;
+                }
+            });
+            _toolkitRoomCodeField?.RegisterValueChangedCallback(evt =>
+            {
+                if (!_suppressToolkitFieldCallbacks)
+                {
+                    _roomCode = evt.newValue;
+                }
+            });
+            if (_toolkitConnectButton != null)
+            {
+                _toolkitConnectButton.clicked += () =>
+                {
+                    if (_client != null)
+                    {
+                        _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    }
+                };
+            }
+            if (_toolkitCreateButton != null)
+            {
+                _toolkitCreateButton.clicked += () =>
+                {
+                    _readyRequested = false;
+                    if (_client != null)
+                    {
+                        _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    }
+                };
+            }
+            if (_toolkitJoinButton != null)
+            {
+                _toolkitJoinButton.clicked += () =>
+                {
+                    _readyRequested = false;
+                    if (_client != null)
+                    {
+                        _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    }
+                };
+            }
+            if (_toolkitReadyButton != null)
+            {
+                _toolkitReadyButton.clicked += () =>
+                {
+                    _readyRequested = !_readyRequested;
+                    if (_client != null)
+                    {
+                        _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    }
+                };
+            }
+        }
+
+        private void BuildProceduralUiToolkitOverlay()
         {
             _uiRoot.Clear();
             _uiRoot.style.flexGrow = 1f;
