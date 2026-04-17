@@ -21,6 +21,7 @@ namespace BatteryRushArena.NetworkSpike
         private const float AbilityPanelHeight = 64f;
         private const float AbilityPillWidth = 94f;
         private const float AbilityPillHeight = 22f;
+        private const float CameraFollowSpeed = 6f;
         private static readonly Vector2[] BatterySpawnPreview =
         {
             new(0f, 0f),
@@ -42,6 +43,7 @@ namespace BatteryRushArena.NetworkSpike
         private readonly List<string> _logs = new();
         private readonly List<PlayerVisualState> _playerVisuals = new();
         private readonly NetworkSpikeClientConfig _config = new();
+        private readonly Dictionary<string, SpriteRenderer> _scenePlayerRenderers = new(StringComparer.Ordinal);
         private NetworkSpikeClient _client;
         private CancellationTokenSource _lifetimeCts;
         private string _playerName = "PlayerA";
@@ -56,6 +58,11 @@ namespace BatteryRushArena.NetworkSpike
         private GUIStyle _overlayTitleStyle;
         private GUIStyle _overlaySubStyle;
         private GUIStyle _pillLabelStyle;
+        private Transform _sceneRoot;
+        private SpriteRenderer _arenaSurfaceRenderer;
+        private SpriteRenderer[] _batterySceneRenderers = Array.Empty<SpriteRenderer>();
+        private SpriteRenderer[] _trapSceneRenderers = Array.Empty<SpriteRenderer>();
+        private static Sprite _solidSprite;
 
         private void Awake()
         {
@@ -63,6 +70,8 @@ namespace BatteryRushArena.NetworkSpike
             _client = new NetworkSpikeClient(_config);
             _client.LogEmitted += AppendLog;
             _client.MessageReceived += OnMessageReceived;
+            EnsureScenePresentation();
+            ConfigureCamera();
             AppendLog("Network spike bootstrap ready.");
         }
 
@@ -93,6 +102,8 @@ namespace BatteryRushArena.NetworkSpike
                     _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), ReadAimVector(), true, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
                 }
             }
+
+            UpdateCameraFollow();
         }
 
         private void OnGUI()
@@ -105,6 +116,10 @@ namespace BatteryRushArena.NetworkSpike
             if (_lifetimeCts != null) _lifetimeCts.Cancel();
             if (_client != null) _client.Dispose();
             if (_lifetimeCts != null) _lifetimeCts.Dispose();
+            if (_sceneRoot != null)
+            {
+                Destroy(_sceneRoot.gameObject);
+            }
         }
 
         private void DrawWindow(int id)
@@ -211,6 +226,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             RefreshPresentationSnapshot(message);
+            SyncScenePresentation();
         }
 
         private static Vector2 ReadMoveVector()
@@ -465,6 +481,24 @@ namespace BatteryRushArena.NetworkSpike
             _playerVisuals.AddRange(BuildPlayerVisuals(message.Members, scoresByName, positionsByName, effectsByName));
         }
 
+        public void ApplyAuthoritativeSnapshotForTesting(SpikeServerMessage message)
+        {
+            _lastServerMessage = message;
+            RefreshPresentationSnapshot(message);
+            SyncScenePresentation();
+        }
+
+        public int ScenePlayerActorCountForTesting => _scenePlayerRenderers.Count(pair => pair.Value != null && pair.Value.gameObject.activeSelf);
+
+        public int SceneBatteryActorCountForTesting => _batterySceneRenderers.Count(renderer => renderer != null && renderer.gameObject.activeSelf);
+
+        public int SceneTrapActorCountForTesting => _trapSceneRenderers.Count(renderer => renderer != null && renderer.gameObject.activeSelf);
+
+        public Vector3 GetPlayerScenePositionForTesting(string playerName) =>
+            _scenePlayerRenderers.TryGetValue(playerName, out var renderer) && renderer != null
+                ? renderer.transform.position
+                : Vector3.zero;
+
         private string BuildWinnerSummary()
         {
             if (_playerVisuals.Count == 0)
@@ -645,6 +679,179 @@ namespace BatteryRushArena.NetworkSpike
 
         private static float ParseFloat(string text, float fallback) =>
             float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : fallback;
+
+        private void EnsureScenePresentation()
+        {
+            if (_sceneRoot != null)
+            {
+                return;
+            }
+
+            _sceneRoot = new GameObject("NetworkSpikeScenePresentation").transform;
+            _arenaSurfaceRenderer = CreateSceneSprite(
+                "ArenaSurface",
+                _sceneRoot,
+                Vector2.zero,
+                new Vector3((ArenaWorldHalfExtent * 2f) + 0.8f, (ArenaWorldHalfExtent * 2f) + 0.8f, 1f),
+                new Color(0.06f, 0.08f, 0.12f, 0.92f),
+                -10);
+
+            _batterySceneRenderers = BatterySpawnPreview
+                .Select((position, index) => CreateSceneSprite(
+                    $"Battery-{index + 1}",
+                    _sceneRoot,
+                    position,
+                    new Vector3(0.35f, 0.35f, 1f),
+                    new Color(1f, 0.83f, 0.18f, 1f),
+                    20))
+                .ToArray();
+
+            _trapSceneRenderers = TrapPreviewPositions
+                .Select((position, index) => CreateSceneSprite(
+                    $"Trap-{index + 1}",
+                    _sceneRoot,
+                    position,
+                    new Vector3(0.9f, 0.9f, 1f),
+                    new Color(0.8f, 0.24f, 0.28f, 0.35f),
+                    5))
+                .ToArray();
+        }
+
+        private void SyncScenePresentation()
+        {
+            EnsureScenePresentation();
+            SyncBatterySceneActors();
+            SyncTrapSceneActors();
+            SyncPlayerSceneActors();
+        }
+
+        private void SyncBatterySceneActors()
+        {
+            var activeIds = new HashSet<int>(_activeBatteryIds);
+            for (var index = 0; index < _batterySceneRenderers.Length; index++)
+            {
+                if (_batterySceneRenderers[index] == null)
+                {
+                    continue;
+                }
+
+                _batterySceneRenderers[index].gameObject.SetActive(activeIds.Contains(index + 1));
+            }
+        }
+
+        private void SyncTrapSceneActors()
+        {
+            foreach (var renderer in _trapSceneRenderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.gameObject.SetActive(true);
+                }
+            }
+        }
+
+        private void SyncPlayerSceneActors()
+        {
+            var activePlayers = new HashSet<string>(_playerVisuals.Select(player => player.Name), StringComparer.Ordinal);
+            foreach (var stale in _scenePlayerRenderers.Keys.Where(name => !activePlayers.Contains(name)).ToArray())
+            {
+                if (_scenePlayerRenderers[stale] != null)
+                {
+                    _scenePlayerRenderers[stale].gameObject.SetActive(false);
+                }
+            }
+
+            foreach (var player in _playerVisuals)
+            {
+                if (!_scenePlayerRenderers.TryGetValue(player.Name, out var renderer) || renderer == null)
+                {
+                    renderer = CreateSceneSprite(
+                        $"{player.Name}-Actor",
+                        _sceneRoot,
+                        player.Position,
+                        new Vector3(0.55f, 0.55f, 1f),
+                        Color.white,
+                        30);
+                    _scenePlayerRenderers[player.Name] = renderer;
+                }
+
+                renderer.gameObject.SetActive(true);
+                renderer.transform.position = new Vector3(player.Position.x, player.Position.y, 0f);
+                renderer.color = BuildPlayerSceneColor(player);
+            }
+        }
+
+        private void ConfigureCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            camera.orthographic = true;
+            camera.orthographicSize = 4.4f;
+            camera.transform.position = new Vector3(0f, 0f, -10f);
+            camera.backgroundColor = new Color(0.03f, 0.05f, 0.08f, 1f);
+        }
+
+        private void UpdateCameraFollow()
+        {
+            var camera = Camera.main;
+            var localPlayer = GetLocalPlayer();
+            if (camera == null || localPlayer == null)
+            {
+                return;
+            }
+
+            var target = new Vector3(localPlayer.Position.x, localPlayer.Position.y, -10f);
+            camera.transform.position = Vector3.Lerp(camera.transform.position, target, Time.deltaTime * CameraFollowSpeed);
+        }
+
+        private static Color BuildPlayerSceneColor(PlayerVisualState player)
+        {
+            if (player.IsDebuffed)
+            {
+                return new Color(1f, 0.47f, 0.28f, 1f);
+            }
+
+            if (player.ImmunityRemainingSeconds > 0.05f)
+            {
+                return new Color(0.95f, 0.89f, 0.42f, 1f);
+            }
+
+            return new Color(0.33f, 0.9f, 0.53f, 1f);
+        }
+
+        private static SpriteRenderer CreateSceneSprite(
+            string name,
+            Transform parent,
+            Vector2 position,
+            Vector3 scale,
+            Color color,
+            int sortingOrder)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(position.x, position.y, 0f);
+            go.transform.localScale = scale;
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = GetSolidSprite();
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return renderer;
+        }
+
+        private static Sprite GetSolidSprite()
+        {
+            if (_solidSprite != null)
+            {
+                return _solidSprite;
+            }
+
+            _solidSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+            return _solidSprite;
+        }
 
         private bool IsRoomState(string state) =>
             string.Equals(_lastServerMessage.RoomState, state, StringComparison.OrdinalIgnoreCase);

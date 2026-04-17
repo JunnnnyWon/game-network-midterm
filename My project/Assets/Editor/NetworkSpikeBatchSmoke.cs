@@ -52,6 +52,11 @@ namespace BatteryRushArena.Editor
                 return 3;
             }
 
+            if (!VerifyScenePresentationAsync(activeSnapshot))
+            {
+                return 3;
+            }
+
             if (!await VerifyEffectsAsync(clientA, clientB, observations, cts.Token))
             {
                 return 3;
@@ -339,6 +344,49 @@ namespace BatteryRushArena.Editor
             await staleClient.ConnectAndHandshakeAsync("IdleClient", cancellationToken: cancellationToken);
             await Task.Delay(TimeSpan.FromSeconds(6), cancellationToken);
             return observations.StaleObserved;
+        }
+
+        private static bool VerifyScenePresentationAsync(SpikeServerMessage activeSnapshot)
+        {
+            var go = new GameObject("NetworkSpikeScenePresentationSmoke");
+            var app = go.AddComponent<NetworkSpikeApp>();
+            try
+            {
+                app.ApplyAuthoritativeSnapshotForTesting(activeSnapshot);
+
+                if (app.ScenePlayerActorCountForTesting < 2)
+                {
+                    Debug.LogError("Scene-backed presentation did not create player actors from the authoritative snapshot.");
+                    return false;
+                }
+
+                if (app.SceneBatteryActorCountForTesting != activeSnapshot.ActiveBatteryIds.Length)
+                {
+                    Debug.LogError("Scene-backed presentation did not mirror the active battery count.");
+                    return false;
+                }
+
+                if (app.SceneTrapActorCountForTesting < 2)
+                {
+                    Debug.LogError("Scene-backed presentation did not keep both trap zones visible.");
+                    return false;
+                }
+
+                var playerAPosition = ExtractPosition(activeSnapshot, "PlayerA");
+                var presentedPosition = app.GetPlayerScenePositionForTesting("PlayerA");
+                if (Vector2.Distance(playerAPosition, presentedPosition) > 0.01f)
+                {
+                    Debug.LogError("Scene-backed presentation did not place PlayerA at the authoritative world position.");
+                    return false;
+                }
+
+                Debug.Log("PASS: Scene-backed presentation mirrors the authoritative snapshot.");
+                return true;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         private static async Task<SpikeServerMessage> WaitForRoomSnapshotAsync(NetworkSpikeClient client, Func<SpikeServerMessage, bool> predicate, CancellationToken cancellationToken, int timeoutMs = 8000)

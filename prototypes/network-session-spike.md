@@ -181,3 +181,22 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - The cooldown payload is still intentionally local-only per snapshot (`SessionId`-scoped) so opponents do not gain extra remote-state authority beyond the existing effect feed.
 - The current HUD remains IMGUI-based for spike speed; a later production UI pass can replace the pills/cards with the project’s real screen framework without changing the authoritative payload contract.
+
+
+## Findings — 2026-04-17 scene-backed arena presentation slice
+
+### Evidence captured
+- Unity client scripts compile successfully after adding runtime-created scene actors and camera follow behavior for the spike.
+- `NetworkSpikeApp` now creates scene-backed world actors for authoritative players, active batteries, and trap zones directly from incoming snapshots.
+- `NetworkSpikeBatchSmoke` gained a scene-presentation assertion seam through `ApplyAuthoritativeSnapshotForTesting(...)`.
+- Live protocol smoke still proved Active authoritative positions, trap/effect payloads, and cooldown-after-fire behavior after the scene-backed presentation changes.
+
+### Observed results
+- **Scene-backed player actors mirror authoritative positions instead of relying only on the IMGUI mini-preview** — PASS
+- **Active batteries and trap zones are now visible as world actors in the play space** — PASS
+- **Camera follow keeps the local player framed during live play** — PASS
+- **Existing authoritative HUD/results/cooldown behavior remains intact** — PASS
+
+### Notes
+- This slice still uses runtime-generated placeholder sprites rather than final authored art assets or a full scene/prefab workflow.
+- The IMGUI arena preview remains as a debug-friendly readout, but the spike no longer depends on it as the only way to understand the live arena state.
