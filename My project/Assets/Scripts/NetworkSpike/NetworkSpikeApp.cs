@@ -70,8 +70,13 @@ namespace BatteryRushArena.NetworkSpike
         private UIDocument _uiDocument;
         private PanelSettings _panelSettings;
         private VisualElement _uiRoot;
+        private VisualElement _preMatchOverlay;
         private VisualElement _activeHudOverlay;
         private VisualElement _resultsOverlay;
+        private Label _toolkitPreMatchTitleLabel;
+        private Label _toolkitPreMatchSummaryLabel;
+        private Label _toolkitPreMatchMembersLabel;
+        private Label _toolkitCountdownLabel;
         private Label _toolkitTopLabel;
         private Label _toolkitScoreLabel;
         private Label _toolkitCooldownLabel;
@@ -79,6 +84,13 @@ namespace BatteryRushArena.NetworkSpike
         private Label _toolkitResultsTitleLabel;
         private Label _toolkitResultsScoreLabel;
         private Label _toolkitResultsDetailLabel;
+        private TextField _toolkitPlayerNameField;
+        private TextField _toolkitRoomCodeField;
+        private Button _toolkitConnectButton;
+        private Button _toolkitCreateButton;
+        private Button _toolkitJoinButton;
+        private Button _toolkitReadyButton;
+        private bool _suppressToolkitFieldCallbacks;
         private static Sprite _solidSprite;
 
         private void Awake()
@@ -532,7 +544,15 @@ namespace BatteryRushArena.NetworkSpike
 
         public bool ToolkitResultsVisibleForTesting => _resultsOverlay != null && _resultsOverlay.style.display == DisplayStyle.Flex;
 
+        public bool ToolkitPreMatchVisibleForTesting => _preMatchOverlay != null && _preMatchOverlay.style.display == DisplayStyle.Flex;
+
+        public bool ToolkitCountdownVisibleForTesting => _toolkitCountdownLabel != null && _toolkitCountdownLabel.style.display == DisplayStyle.Flex;
+
         public bool ToolkitOverlayBuiltForTesting => _uiRoot != null;
+
+        public string ToolkitPreMatchTitleForTesting => _toolkitPreMatchTitleLabel?.text ?? string.Empty;
+
+        public string ToolkitPreMatchMembersForTesting => _toolkitPreMatchMembersLabel?.text ?? string.Empty;
 
         private string BuildWinnerSummary()
         {
@@ -894,6 +914,120 @@ namespace BatteryRushArena.NetworkSpike
             _uiRoot.style.flexGrow = 1f;
             _uiRoot.pickingMode = PickingMode.Ignore;
 
+            _preMatchOverlay = new VisualElement();
+            _preMatchOverlay.style.position = Position.Absolute;
+            _preMatchOverlay.style.left = ToolkitMargin;
+            _preMatchOverlay.style.top = ToolkitMargin;
+            _preMatchOverlay.style.width = 420f;
+            _preMatchOverlay.style.paddingLeft = 16f;
+            _preMatchOverlay.style.paddingRight = 16f;
+            _preMatchOverlay.style.paddingTop = 16f;
+            _preMatchOverlay.style.paddingBottom = 16f;
+            _preMatchOverlay.style.backgroundColor = new Color(0.08f, 0.11f, 0.17f, 0.92f);
+            _preMatchOverlay.style.borderLeftWidth = 2f;
+            _preMatchOverlay.style.borderTopWidth = 2f;
+            _preMatchOverlay.style.borderRightWidth = 2f;
+            _preMatchOverlay.style.borderBottomWidth = 2f;
+            _preMatchOverlay.style.borderLeftColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            _preMatchOverlay.style.borderTopColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            _preMatchOverlay.style.borderRightColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            _preMatchOverlay.style.borderBottomColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            _preMatchOverlay.pickingMode = PickingMode.Position;
+
+            _toolkitPreMatchTitleLabel = new Label();
+            _toolkitPreMatchTitleLabel.style.fontSize = 20f;
+            _toolkitPreMatchTitleLabel.style.color = Color.white;
+            _toolkitPreMatchTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _toolkitPreMatchSummaryLabel = new Label();
+            _toolkitPreMatchSummaryLabel.style.marginTop = 6f;
+            _toolkitPreMatchSummaryLabel.style.color = new Color(0.88f, 0.92f, 1f, 1f);
+
+            _toolkitPlayerNameField = new TextField("Player");
+            _toolkitPlayerNameField.RegisterValueChangedCallback(evt =>
+            {
+                if (!_suppressToolkitFieldCallbacks)
+                {
+                    _playerName = evt.newValue;
+                }
+            });
+
+            _toolkitRoomCodeField = new TextField("Room Code");
+            _toolkitRoomCodeField.RegisterValueChangedCallback(evt =>
+            {
+                if (!_suppressToolkitFieldCallbacks)
+                {
+                    _roomCode = evt.newValue;
+                }
+            });
+
+            var actionRow = new VisualElement();
+            actionRow.style.flexDirection = FlexDirection.Row;
+            actionRow.style.marginTop = 10f;
+
+            _toolkitConnectButton = new Button(() =>
+            {
+                if (_client != null)
+                {
+                    _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+            })
+            { text = "Connect" };
+            _toolkitCreateButton = new Button(() =>
+            {
+                _readyRequested = false;
+                if (_client != null)
+                {
+                    _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+            })
+            { text = "Create" };
+            _toolkitJoinButton = new Button(() =>
+            {
+                _readyRequested = false;
+                if (_client != null)
+                {
+                    _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+            })
+            { text = "Join" };
+
+            actionRow.Add(_toolkitConnectButton);
+            actionRow.Add(_toolkitCreateButton);
+            actionRow.Add(_toolkitJoinButton);
+
+            _toolkitPreMatchMembersLabel = new Label();
+            _toolkitPreMatchMembersLabel.style.marginTop = 10f;
+            _toolkitPreMatchMembersLabel.style.whiteSpace = WhiteSpace.Normal;
+            _toolkitPreMatchMembersLabel.style.color = new Color(0.95f, 0.97f, 1f, 1f);
+
+            _toolkitReadyButton = new Button(() =>
+            {
+                _readyRequested = !_readyRequested;
+                if (_client != null)
+                {
+                    _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+            })
+            { text = "Set Ready" };
+            _toolkitReadyButton.style.marginTop = 10f;
+
+            _toolkitCountdownLabel = new Label();
+            _toolkitCountdownLabel.style.marginTop = 10f;
+            _toolkitCountdownLabel.style.fontSize = 18f;
+            _toolkitCountdownLabel.style.color = new Color(1f, 0.93f, 0.5f, 1f);
+            _toolkitCountdownLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _preMatchOverlay.Add(_toolkitPreMatchTitleLabel);
+            _preMatchOverlay.Add(_toolkitPreMatchSummaryLabel);
+            _preMatchOverlay.Add(_toolkitPlayerNameField);
+            _preMatchOverlay.Add(_toolkitRoomCodeField);
+            _preMatchOverlay.Add(actionRow);
+            _preMatchOverlay.Add(_toolkitPreMatchMembersLabel);
+            _preMatchOverlay.Add(_toolkitReadyButton);
+            _preMatchOverlay.Add(_toolkitCountdownLabel);
+            _uiRoot.Add(_preMatchOverlay);
+
             _activeHudOverlay = new VisualElement();
             _activeHudOverlay.style.position = Position.Absolute;
             _activeHudOverlay.style.left = ToolkitMargin;
@@ -980,9 +1114,29 @@ namespace BatteryRushArena.NetworkSpike
 
             var localPlayer = GetLocalPlayer();
             var opponent = _playerVisuals.FirstOrDefault(player => !string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+            var preMatchVisible = !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
 
+            _preMatchOverlay.style.display = preMatchVisible ? DisplayStyle.Flex : DisplayStyle.None;
             _activeHudOverlay.style.display = IsRoomState("Active") ? DisplayStyle.Flex : DisplayStyle.None;
             _resultsOverlay.style.display = IsAnyRoomState("Ended", "Saving", "ResultsReady") ? DisplayStyle.Flex : DisplayStyle.None;
+
+            _suppressToolkitFieldCallbacks = true;
+            _toolkitPlayerNameField.value = _playerName;
+            _toolkitRoomCodeField.value = _roomCode;
+            _suppressToolkitFieldCallbacks = false;
+
+            _toolkitPreMatchTitleLabel.text = BuildPreMatchTitle();
+            _toolkitPreMatchSummaryLabel.text = BuildPreMatchSummary();
+            _toolkitPreMatchMembersLabel.text = BuildLobbyMembersSummary();
+            _toolkitReadyButton.text = _readyRequested ? "Unset Ready" : "Set Ready";
+            _toolkitReadyButton.SetEnabled(IsAnyRoomState("Lobby", "Countdown"));
+            _toolkitConnectButton.SetEnabled(_client == null || !_client.IsConnected);
+            _toolkitCreateButton.SetEnabled(_client != null && _client.IsConnected && !IsRoomState("Countdown"));
+            _toolkitJoinButton.SetEnabled(_client != null && _client.IsConnected && !IsRoomState("Countdown"));
+            _toolkitCountdownLabel.style.display = IsRoomState("Countdown") ? DisplayStyle.Flex : DisplayStyle.None;
+            _toolkitCountdownLabel.text = IsRoomState("Countdown")
+                ? $"Match starts in {Mathf.CeilToInt(Mathf.Max(0.1f, _lastServerMessage.CountdownRemainingSeconds))}"
+                : string.Empty;
 
             if (_toolkitTopLabel != null)
             {
@@ -1060,6 +1214,46 @@ namespace BatteryRushArena.NetworkSpike
             label.style.color = Color.white;
             label.style.fontSize = 14f;
             return label;
+        }
+
+        private string BuildPreMatchTitle()
+        {
+            if (IsRoomState("Countdown"))
+            {
+                return "Countdown";
+            }
+
+            if (IsRoomState("Lobby"))
+            {
+                return "Lobby";
+            }
+
+            return "Main Menu";
+        }
+
+        private string BuildPreMatchSummary()
+        {
+            if (IsRoomState("Countdown"))
+            {
+                return $"Room {FormatValue(_roomCode)} · Ready {_lastServerMessage.ReadyPlayers}/{Mathf.Max(1, _lastServerMessage.PlayerCount)}";
+            }
+
+            if (IsRoomState("Lobby"))
+            {
+                return $"Room {FormatValue(_roomCode)} · Players {_lastServerMessage.PlayerCount} · Ready {_lastServerMessage.ReadyPlayers}";
+            }
+
+            return $"Host {_config.Host}:{_config.Port}";
+        }
+
+        private string BuildLobbyMembersSummary()
+        {
+            if (_lastServerMessage.Members == null || _lastServerMessage.Members.Length == 0)
+            {
+                return "Members: waiting for room";
+            }
+
+            return "Members: " + string.Join(", ", _lastServerMessage.Members);
         }
 
         private static Color BuildPlayerSceneColor(PlayerVisualState player)

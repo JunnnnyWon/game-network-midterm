@@ -46,6 +46,11 @@ namespace BatteryRushArena.Editor
                 return 2;
             }
 
+            if (!await VerifyPreMatchOverlayAsync(clientA, roomCode, cts.Token))
+            {
+                return 3;
+            }
+
             var activeSnapshot = await VerifyActiveFeedsAsync(clientA, observations, cts.Token);
             if (activeSnapshot == null)
             {
@@ -360,6 +365,78 @@ namespace BatteryRushArena.Editor
             await staleClient.ConnectAndHandshakeAsync("IdleClient", cancellationToken: cancellationToken);
             await Task.Delay(TimeSpan.FromSeconds(6), cancellationToken);
             return observations.StaleObserved;
+        }
+
+        private static async Task<bool> VerifyPreMatchOverlayAsync(
+            NetworkSpikeClient clientA,
+            string roomCode,
+            CancellationToken cancellationToken)
+        {
+            var lobbySnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.RoomState == "Lobby" && msg.PlayerCount >= 2, cancellationToken, 4000);
+            if (lobbySnapshot == null)
+            {
+                Debug.LogError("Lobby snapshot was not observed before countdown.");
+                return false;
+            }
+
+            if (!VerifyToolkitPreMatchSnapshot(lobbySnapshot, roomCode, expectCountdown: false))
+            {
+                return false;
+            }
+
+            var countdownSnapshot = await WaitForRoomSnapshotAsync(clientA, msg => msg.RoomState == "Countdown", cancellationToken, 4000);
+            if (countdownSnapshot == null)
+            {
+                Debug.LogError("Countdown snapshot was not observed.");
+                return false;
+            }
+
+            return VerifyToolkitPreMatchSnapshot(countdownSnapshot, roomCode, expectCountdown: true);
+        }
+
+        private static bool VerifyToolkitPreMatchSnapshot(SpikeServerMessage snapshot, string roomCode, bool expectCountdown)
+        {
+            var go = new GameObject(expectCountdown ? "NetworkSpikeCountdownToolkitSmoke" : "NetworkSpikeLobbyToolkitSmoke");
+            var app = go.AddComponent<NetworkSpikeApp>();
+            try
+            {
+                app.ApplyAuthoritativeSnapshotForTesting(snapshot);
+                if (!app.ToolkitOverlayBuiltForTesting || !app.ToolkitPreMatchVisibleForTesting)
+                {
+                    Debug.LogError("UI Toolkit pre-match overlay did not become visible for the authoritative pre-match snapshot.");
+                    return false;
+                }
+
+                if (expectCountdown && !app.ToolkitCountdownVisibleForTesting)
+                {
+                    Debug.LogError("UI Toolkit countdown overlay did not become visible for the countdown snapshot.");
+                    return false;
+                }
+
+                if (!expectCountdown && app.ToolkitPreMatchTitleForTesting != "Lobby")
+                {
+                    Debug.LogError("UI Toolkit lobby overlay did not identify the lobby state correctly.");
+                    return false;
+                }
+
+                if (!app.ToolkitPreMatchMembersForTesting.Contains("PlayerA", StringComparison.Ordinal) ||
+                    !app.ToolkitPreMatchMembersForTesting.Contains("PlayerB", StringComparison.Ordinal) ||
+                    !app.ToolkitPreMatchMembersForTesting.Contains(roomCode, StringComparison.Ordinal) &&
+                    !string.Equals(snapshot.RoomCode, roomCode, StringComparison.Ordinal))
+                {
+                    Debug.LogError("UI Toolkit pre-match overlay did not expose the authoritative members/room information.");
+                    return false;
+                }
+
+                Debug.Log(expectCountdown
+                    ? "PASS: UI Toolkit countdown overlay mirrors the authoritative countdown snapshot."
+                    : "PASS: UI Toolkit lobby overlay mirrors the authoritative lobby snapshot.");
+                return true;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         private static bool VerifyScenePresentationAsync(SpikeServerMessage activeSnapshot)

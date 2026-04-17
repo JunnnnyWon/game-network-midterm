@@ -1,6 +1,6 @@
 # Story 005 — UI Toolkit Lobby and Countdown Flow
 
-Status: In Progress
+Status: Complete
 Type: Gameplay/UI slice
 Epic: production/epics/epic-first-playable-network-core/EPIC.md
 
@@ -13,3 +13,9 @@ Move player-name entry, create/join room, lobby readiness, and countdown present
 - Countdown is visibly rendered through UI Toolkit before Active play begins.
 - Existing authoritative Active HUD/results flow remains intact.
 - Findings are appended to `prototypes/network-session-spike.md`.
+
+## Verification Evidence
+- `dotnet build src/NetworkSpikeServer/NetworkSpikeServer.csproj`
+- `dotnet build "My project/Assembly-CSharp.csproj"`
+- `NetworkSpikeBatchSmoke` now asserts UI Toolkit lobby and countdown overlay visibility via `ApplyAuthoritativeSnapshotForTesting(...)`
+- Live protocol smoke still proves create/join/ready/countdown flow reaches Active after the pre-match overlay migration

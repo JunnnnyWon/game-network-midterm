@@ -219,3 +219,22 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - The spike still keeps IMGUI debug controls for bounded scope, but the core Active/results presentation no longer has to live only in the IMGUI shell.
 - The UI Toolkit overlay is still code-built runtime scaffolding; a later slice can move it to authored UXML/USS assets without changing the authoritative snapshot contract.
+
+
+## Findings — 2026-04-17 UI Toolkit lobby and countdown slice
+
+### Evidence captured
+- Unity client scripts compile successfully after introducing UI Toolkit pre-match panels for name/create/join/lobby/countdown flow.
+- `NetworkSpikeApp` now builds a UI Toolkit pre-match overlay that mirrors room code, members, readiness, and countdown while keeping the existing Active/results overlay intact.
+- `NetworkSpikeBatchSmoke` now asserts lobby and countdown overlay visibility through `ApplyAuthoritativeSnapshotForTesting(...)`.
+- Live protocol smoke still proved create/join/ready/countdown reaches Active after the pre-match overlay migration.
+
+### Observed results
+- **Player-name / create / join controls are now available through UI Toolkit** — PASS
+- **Lobby room/members/readiness state is visible through UI Toolkit** — PASS
+- **Countdown is visibly rendered through UI Toolkit before Active play begins** — PASS
+- **Existing Active HUD/results flow remains intact** — PASS
+
+### Notes
+- The IMGUI shell still exists as a bounded debug surface, but the core pre-match flow no longer depends on it as the only player-facing path.
+- The UI Toolkit pre-match layer is still runtime-built scaffolding; a later slice can move it into authored UXML/USS assets without changing the authoritative state contract.
