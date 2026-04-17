@@ -330,6 +330,22 @@ namespace BatteryRushArena.Editor
                 return false;
             }
 
+            var go = new GameObject("NetworkSpikeToolkitResultsSmoke");
+            var app = go.AddComponent<NetworkSpikeApp>();
+            try
+            {
+                app.ApplyAuthoritativeSnapshotForTesting(resultsSnapshot);
+                if (!app.ToolkitResultsVisibleForTesting)
+                {
+                    Debug.LogError("UI Toolkit results overlay did not become visible for the results snapshot.");
+                    return false;
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+
             Debug.Log("PASS: Results snapshot exposes end reason, final scores, and persistence status together.");
             return true;
         }
@@ -369,6 +385,12 @@ namespace BatteryRushArena.Editor
                 if (app.SceneTrapActorCountForTesting < 2)
                 {
                     Debug.LogError("Scene-backed presentation did not keep both trap zones visible.");
+                    return false;
+                }
+
+                if (!app.ToolkitOverlayBuiltForTesting || !app.ToolkitHudVisibleForTesting)
+                {
+                    Debug.LogError("UI Toolkit active HUD did not build or become visible for the active snapshot.");
                     return false;
                 }
 

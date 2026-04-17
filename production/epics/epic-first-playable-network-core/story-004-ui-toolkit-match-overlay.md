@@ -1,6 +1,6 @@
 # Story 004 — UI Toolkit Match Overlay
 
-Status: In Progress
+Status: Complete
 Type: Gameplay/UI slice
 Epic: production/epics/epic-first-playable-network-core/EPIC.md
 
@@ -13,3 +13,9 @@ Move the spike's core Active/results presentation from IMGUI into a real UI Tool
 - Existing authoritative cooldown/debuff/results data remains correct.
 - Existing world presentation and gameplay behavior remain verified.
 - Findings are appended to `prototypes/network-session-spike.md`.
+
+## Verification Evidence
+- `dotnet build src/NetworkSpikeServer/NetworkSpikeServer.csproj`
+- `dotnet build "My project/Assembly-CSharp.csproj"`
+- `NetworkSpikeBatchSmoke` now asserts the UI Toolkit overlay seam for Active and results snapshots via `ApplyAuthoritativeSnapshotForTesting(...)`
+- Live protocol smoke still proves Active authoritative positions, trap/effect payloads, and cooldown-after-fire behavior after the overlay migration

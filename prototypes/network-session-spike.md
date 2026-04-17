@@ -200,3 +200,22 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - This slice still uses runtime-generated placeholder sprites rather than final authored art assets or a full scene/prefab workflow.
 - The IMGUI arena preview remains as a debug-friendly readout, but the spike no longer depends on it as the only way to understand the live arena state.
+
+
+## Findings — 2026-04-17 UI Toolkit match overlay slice
+
+### Evidence captured
+- Unity client scripts compile successfully after introducing a runtime-created UI Toolkit overlay for the Active HUD and results state.
+- `NetworkSpikeApp` now builds a `UIDocument`/`VisualElement` overlay at runtime and drives it from the same authoritative snapshot feed as the existing scene/HUD systems.
+- `NetworkSpikeBatchSmoke` now asserts the UI Toolkit overlay seam for both active and results snapshots through `ApplyAuthoritativeSnapshotForTesting(...)`.
+- Live protocol smoke still proved Active authoritative positions, trap/effect payloads, and cooldown-after-fire behavior after the UI overlay changes.
+
+### Observed results
+- **Active match HUD can be presented through UI Toolkit instead of depending only on IMGUI cards** — PASS
+- **Results state can be presented through UI Toolkit when the room ends** — PASS
+- **Existing authoritative cooldown/debuff/results data remains the sole source of truth** — PASS
+- **Scene-backed world presentation and gameplay behavior remain intact** — PASS
+
+### Notes
+- The spike still keeps IMGUI debug controls for bounded scope, but the core Active/results presentation no longer has to live only in the IMGUI shell.
+- The UI Toolkit overlay is still code-built runtime scaffolding; a later slice can move it to authored UXML/USS assets without changing the authoritative snapshot contract.

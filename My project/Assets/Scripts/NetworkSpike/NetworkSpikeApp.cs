@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace BatteryRushArena.NetworkSpike
 {
@@ -22,6 +23,9 @@ namespace BatteryRushArena.NetworkSpike
         private const float AbilityPillWidth = 94f;
         private const float AbilityPillHeight = 22f;
         private const float CameraFollowSpeed = 6f;
+        private const float ToolkitMargin = 16f;
+        private const float ToolkitCardWidth = 220f;
+        private const float ToolkitCardHeight = 72f;
         private static readonly Vector2[] BatterySpawnPreview =
         {
             new(0f, 0f),
@@ -59,9 +63,22 @@ namespace BatteryRushArena.NetworkSpike
         private GUIStyle _overlaySubStyle;
         private GUIStyle _pillLabelStyle;
         private Transform _sceneRoot;
+        private Transform _uiOverlayRoot;
         private SpriteRenderer _arenaSurfaceRenderer;
         private SpriteRenderer[] _batterySceneRenderers = Array.Empty<SpriteRenderer>();
         private SpriteRenderer[] _trapSceneRenderers = Array.Empty<SpriteRenderer>();
+        private UIDocument _uiDocument;
+        private PanelSettings _panelSettings;
+        private VisualElement _uiRoot;
+        private VisualElement _activeHudOverlay;
+        private VisualElement _resultsOverlay;
+        private Label _toolkitTopLabel;
+        private Label _toolkitScoreLabel;
+        private Label _toolkitCooldownLabel;
+        private Label _toolkitEffectLabel;
+        private Label _toolkitResultsTitleLabel;
+        private Label _toolkitResultsScoreLabel;
+        private Label _toolkitResultsDetailLabel;
         private static Sprite _solidSprite;
 
         private void Awake()
@@ -71,6 +88,7 @@ namespace BatteryRushArena.NetworkSpike
             _client.LogEmitted += AppendLog;
             _client.MessageReceived += OnMessageReceived;
             EnsureScenePresentation();
+            EnsureUiToolkitOverlay();
             ConfigureCamera();
             AppendLog("Network spike bootstrap ready.");
         }
@@ -104,6 +122,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             UpdateCameraFollow();
+            EnsureUiToolkitOverlay();
         }
 
         private void OnGUI()
@@ -119,6 +138,14 @@ namespace BatteryRushArena.NetworkSpike
             if (_sceneRoot != null)
             {
                 Destroy(_sceneRoot.gameObject);
+            }
+            if (_uiOverlayRoot != null)
+            {
+                Destroy(_uiOverlayRoot.gameObject);
+            }
+            if (_panelSettings != null)
+            {
+                Destroy(_panelSettings);
             }
         }
 
@@ -227,6 +254,7 @@ namespace BatteryRushArena.NetworkSpike
 
             RefreshPresentationSnapshot(message);
             SyncScenePresentation();
+            RefreshUiToolkitOverlay();
         }
 
         private static Vector2 ReadMoveVector()
@@ -486,6 +514,7 @@ namespace BatteryRushArena.NetworkSpike
             _lastServerMessage = message;
             RefreshPresentationSnapshot(message);
             SyncScenePresentation();
+            RefreshUiToolkitOverlay();
         }
 
         public int ScenePlayerActorCountForTesting => _scenePlayerRenderers.Count(pair => pair.Value != null && pair.Value.gameObject.activeSelf);
@@ -498,6 +527,12 @@ namespace BatteryRushArena.NetworkSpike
             _scenePlayerRenderers.TryGetValue(playerName, out var renderer) && renderer != null
                 ? renderer.transform.position
                 : Vector3.zero;
+
+        public bool ToolkitHudVisibleForTesting => _activeHudOverlay != null && _activeHudOverlay.style.display == DisplayStyle.Flex;
+
+        public bool ToolkitResultsVisibleForTesting => _resultsOverlay != null && _resultsOverlay.style.display == DisplayStyle.Flex;
+
+        public bool ToolkitOverlayBuiltForTesting => _uiRoot != null;
 
         private string BuildWinnerSummary()
         {
@@ -545,6 +580,16 @@ namespace BatteryRushArena.NetworkSpike
             _lastServerMessage.SlowShotReady
                 ? "Slow shot ready"
                 : $"Slow shot cooldown {BuildCooldownLabel()}";
+
+        private string BuildResultsScoreLine()
+        {
+            if (_playerVisuals.Count == 0)
+            {
+                return "Score: awaiting data";
+            }
+
+            return "Score: " + string.Join(" · ", _playerVisuals.Select(player => $"{player.Name} {player.Score}"));
+        }
 
         private static string BuildEffectLabel(PlayerVisualState player)
         {
@@ -806,6 +851,215 @@ namespace BatteryRushArena.NetworkSpike
 
             var target = new Vector3(localPlayer.Position.x, localPlayer.Position.y, -10f);
             camera.transform.position = Vector3.Lerp(camera.transform.position, target, Time.deltaTime * CameraFollowSpeed);
+        }
+
+        private void EnsureUiToolkitOverlay()
+        {
+            if (_uiRoot != null)
+            {
+                return;
+            }
+
+            if (_uiOverlayRoot == null)
+            {
+                _uiOverlayRoot = new GameObject("NetworkSpikeUiOverlay").transform;
+                _uiOverlayRoot.SetParent(transform, false);
+            }
+
+            if (_panelSettings == null)
+            {
+                _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            }
+
+            if (_uiDocument == null)
+            {
+                _uiDocument = _uiOverlayRoot.gameObject.AddComponent<UIDocument>();
+                _uiDocument.panelSettings = _panelSettings;
+                _uiDocument.sortingOrder = 100;
+            }
+
+            _uiRoot = _uiDocument.rootVisualElement;
+            if (_uiRoot == null)
+            {
+                return;
+            }
+
+            BuildUiToolkitOverlay();
+            RefreshUiToolkitOverlay();
+        }
+
+        private void BuildUiToolkitOverlay()
+        {
+            _uiRoot.Clear();
+            _uiRoot.style.flexGrow = 1f;
+            _uiRoot.pickingMode = PickingMode.Ignore;
+
+            _activeHudOverlay = new VisualElement();
+            _activeHudOverlay.style.position = Position.Absolute;
+            _activeHudOverlay.style.left = ToolkitMargin;
+            _activeHudOverlay.style.top = ToolkitMargin;
+            _activeHudOverlay.style.right = ToolkitMargin;
+            _activeHudOverlay.style.bottom = ToolkitMargin;
+
+            var statusCard = CreateToolkitCard(ToolkitMargin, ToolkitMargin, ToolkitCardWidth, ToolkitCardHeight, "MATCH");
+            _toolkitTopLabel = CreateToolkitValueLabel();
+            statusCard.Add(_toolkitTopLabel);
+
+            var scoreCard = CreateToolkitCard(ToolkitMargin, ToolkitMargin + ToolkitCardHeight + 8f, ToolkitCardWidth, ToolkitCardHeight, "SCORE");
+            _toolkitScoreLabel = CreateToolkitValueLabel();
+            scoreCard.Add(_toolkitScoreLabel);
+
+            var cooldownCard = CreateToolkitCard(ToolkitMargin + ToolkitCardWidth + 8f, ToolkitMargin, ToolkitCardWidth, ToolkitCardHeight, "COOLDOWN");
+            _toolkitCooldownLabel = CreateToolkitValueLabel();
+            cooldownCard.Add(_toolkitCooldownLabel);
+
+            var effectCard = CreateToolkitCard(ToolkitMargin + ToolkitCardWidth + 8f, ToolkitMargin + ToolkitCardHeight + 8f, ToolkitCardWidth, ToolkitCardHeight, "STATUS");
+            _toolkitEffectLabel = CreateToolkitValueLabel();
+            effectCard.Add(_toolkitEffectLabel);
+
+            _activeHudOverlay.Add(statusCard);
+            _activeHudOverlay.Add(scoreCard);
+            _activeHudOverlay.Add(cooldownCard);
+            _activeHudOverlay.Add(effectCard);
+            _uiRoot.Add(_activeHudOverlay);
+
+            _resultsOverlay = new VisualElement();
+            _resultsOverlay.style.position = Position.Absolute;
+            _resultsOverlay.style.left = 0f;
+            _resultsOverlay.style.right = 0f;
+            _resultsOverlay.style.top = 0f;
+            _resultsOverlay.style.bottom = 0f;
+            _resultsOverlay.style.justifyContent = Justify.Center;
+            _resultsOverlay.style.alignItems = Align.Center;
+            _resultsOverlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.42f);
+
+            var resultsCard = new VisualElement();
+            resultsCard.style.width = 360f;
+            resultsCard.style.paddingLeft = 18f;
+            resultsCard.style.paddingRight = 18f;
+            resultsCard.style.paddingTop = 18f;
+            resultsCard.style.paddingBottom = 18f;
+            resultsCard.style.backgroundColor = new Color(0.08f, 0.11f, 0.17f, 0.94f);
+            resultsCard.style.borderLeftWidth = 2f;
+            resultsCard.style.borderRightWidth = 2f;
+            resultsCard.style.borderTopWidth = 2f;
+            resultsCard.style.borderBottomWidth = 2f;
+            resultsCard.style.borderLeftColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            resultsCard.style.borderRightColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            resultsCard.style.borderTopColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+            resultsCard.style.borderBottomColor = new Color(0.39f, 0.55f, 0.75f, 1f);
+
+            _toolkitResultsTitleLabel = new Label();
+            _toolkitResultsTitleLabel.style.fontSize = 20f;
+            _toolkitResultsTitleLabel.style.color = Color.white;
+            _toolkitResultsTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _toolkitResultsScoreLabel = new Label();
+            _toolkitResultsScoreLabel.style.marginTop = 8f;
+            _toolkitResultsScoreLabel.style.color = new Color(0.95f, 0.97f, 1f, 1f);
+            _toolkitResultsScoreLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            _toolkitResultsDetailLabel = new Label();
+            _toolkitResultsDetailLabel.style.marginTop = 8f;
+            _toolkitResultsDetailLabel.style.whiteSpace = WhiteSpace.Normal;
+            _toolkitResultsDetailLabel.style.color = new Color(0.88f, 0.92f, 1f, 1f);
+
+            resultsCard.Add(_toolkitResultsTitleLabel);
+            resultsCard.Add(_toolkitResultsScoreLabel);
+            resultsCard.Add(_toolkitResultsDetailLabel);
+            _resultsOverlay.Add(resultsCard);
+            _uiRoot.Add(_resultsOverlay);
+        }
+
+        private void RefreshUiToolkitOverlay()
+        {
+            if (_uiRoot == null)
+            {
+                return;
+            }
+
+            var localPlayer = GetLocalPlayer();
+            var opponent = _playerVisuals.FirstOrDefault(player => !string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+
+            _activeHudOverlay.style.display = IsRoomState("Active") ? DisplayStyle.Flex : DisplayStyle.None;
+            _resultsOverlay.style.display = IsAnyRoomState("Ended", "Saving", "ResultsReady") ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (_toolkitTopLabel != null)
+            {
+                _toolkitTopLabel.text = $"Room {FormatValue(_roomCode)}\nTime {_lastServerMessage.MatchTimeRemainingSeconds:0.0}s";
+            }
+
+            if (_toolkitScoreLabel != null)
+            {
+                _toolkitScoreLabel.text = localPlayer is null
+                    ? "Waiting for players"
+                    : $"{localPlayer.Name} {localPlayer.Score} : {(opponent?.Score ?? 0)} {opponent?.Name ?? "—"}";
+            }
+
+            if (_toolkitCooldownLabel != null)
+            {
+                _toolkitCooldownLabel.text = BuildCooldownCardLabel();
+            }
+
+            if (_toolkitEffectLabel != null)
+            {
+                _toolkitEffectLabel.text = localPlayer is null ? "Awaiting feed" : BuildEffectLabel(localPlayer);
+            }
+
+            if (_toolkitResultsTitleLabel != null)
+            {
+                _toolkitResultsTitleLabel.text = BuildWinnerSummary();
+            }
+
+            if (_toolkitResultsScoreLabel != null)
+            {
+                _toolkitResultsScoreLabel.text = BuildResultsScoreLine();
+            }
+
+            if (_toolkitResultsDetailLabel != null)
+            {
+                _toolkitResultsDetailLabel.text = $"State: {FormatValue(_lastServerMessage.RoomState)}\nReason: {FormatValue(_lastServerMessage.EndReason)}\nPersist: {FormatValue(_lastServerMessage.PersistenceStatus)}";
+            }
+        }
+
+        private static VisualElement CreateToolkitCard(float left, float top, float width, float height, string title)
+        {
+            var card = new VisualElement();
+            card.style.position = Position.Absolute;
+            card.style.left = left;
+            card.style.top = top;
+            card.style.width = width;
+            card.style.height = height;
+            card.style.paddingLeft = 12f;
+            card.style.paddingRight = 12f;
+            card.style.paddingTop = 8f;
+            card.style.paddingBottom = 8f;
+            card.style.backgroundColor = new Color(0.07f, 0.1f, 0.16f, 0.9f);
+            card.style.borderLeftWidth = 2f;
+            card.style.borderTopWidth = 2f;
+            card.style.borderRightWidth = 2f;
+            card.style.borderBottomWidth = 2f;
+            card.style.borderLeftColor = new Color(0.31f, 0.42f, 0.58f, 1f);
+            card.style.borderTopColor = new Color(0.31f, 0.42f, 0.58f, 1f);
+            card.style.borderRightColor = new Color(0.31f, 0.42f, 0.58f, 1f);
+            card.style.borderBottomColor = new Color(0.31f, 0.42f, 0.58f, 1f);
+
+            var titleLabel = new Label(title);
+            titleLabel.style.fontSize = 11f;
+            titleLabel.style.color = new Color(0.72f, 0.82f, 0.95f, 1f);
+            titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            card.Add(titleLabel);
+            return card;
+        }
+
+        private static Label CreateToolkitValueLabel()
+        {
+            var label = new Label();
+            label.style.marginTop = 6f;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.color = Color.white;
+            label.style.fontSize = 14f;
+            return label;
         }
 
         private static Color BuildPlayerSceneColor(PlayerVisualState player)
