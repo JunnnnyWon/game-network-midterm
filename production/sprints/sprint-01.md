@@ -9,3 +9,4 @@ Stories:
 - production/epics/epic-first-playable-network-core/story-004-ui-toolkit-match-overlay.md
 - production/epics/epic-first-playable-network-core/story-005-ui-toolkit-lobby-and-countdown.md
 - production/epics/epic-first-playable-network-core/story-006-authored-ui-toolkit-assets.md
+- production/epics/epic-first-playable-network-core/story-007-canonical-ui-toolkit-flow.md
