@@ -7,3 +7,4 @@ Stories:
 - production/epics/epic-first-playable-network-core/story-002-authoritative-hud-feedback.md
 - production/epics/epic-first-playable-network-core/story-003-scene-backed-arena-presentation.md
 - production/epics/epic-first-playable-network-core/story-004-ui-toolkit-match-overlay.md
+- production/epics/epic-first-playable-network-core/story-005-ui-toolkit-lobby-and-countdown.md
