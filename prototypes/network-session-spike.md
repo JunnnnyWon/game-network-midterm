@@ -256,3 +256,21 @@ De-risk the authoritative session/transport path with a thin vertical prototype 
 ### Notes
 - The spike still keeps bounded IMGUI debug affordances, but the core runtime UI no longer has to be constructed entirely from C# layout code.
 - A later slice can continue by reducing the remaining IMGUI shell and/or adding authored leaderboard UI assets on top of this asset-backed Toolkit seam.
+
+
+## Findings — 2026-04-17 canonical UI Toolkit flow slice
+
+### Evidence captured
+- Unity client scripts compile successfully after shrinking the IMGUI shell down to a diagnostics-only panel.
+- The authored UI Toolkit assets remain the canonical player-facing path for pre-match, active, and results flow.
+- No server/protocol changes were needed; the same authoritative snapshot contract continues to drive the canonical UI path.
+
+### Observed results
+- **Normal player-facing runtime flow no longer depends on IMGUI** — PASS
+- **IMGUI is reduced to bounded diagnostics/debug information only** — PASS
+- **Existing authored UI Toolkit and scene-backed arena presentation remain intact** — PASS
+- **Client/server builds remain green after the IMGUI reduction** — PASS
+
+### Notes
+- The remaining IMGUI panel is intentionally small and diagnostic-focused so spike iteration can continue without competing with the player-facing UI.
+- A later slice can remove or further hide the debug panel once equivalent diagnostics exist elsewhere.

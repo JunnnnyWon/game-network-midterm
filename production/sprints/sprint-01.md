@@ -1,6 +1,6 @@
 # Sprint 01
 
-Goal: Continue the first playable slice by moving the remaining runtime flow from debug scaffolding into authored scene/UI presentation.
+Goal: Continue the first playable slice by turning the authored scene/UI path into the canonical player-facing flow.
 
 Stories:
 - production/epics/epic-first-playable-network-core/story-001-network-session-spike.md

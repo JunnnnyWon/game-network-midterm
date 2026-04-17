@@ -57,7 +57,8 @@ namespace BatteryRushArena.NetworkSpike
         private int _tick;
         private bool _autoHeartbeat = true;
         private bool _readyRequested;
-        private Rect _window = new(20, 20, 860, 880);
+        private bool _showDiagnosticsWindow;
+        private Rect _window = new(0f, 0f, 320f, 220f);
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
         private int[] _activeBatteryIds = Array.Empty<int>();
         private GUIStyle _overlayTitleStyle;
@@ -111,8 +112,15 @@ namespace BatteryRushArena.NetworkSpike
 
         private void Update()
         {
+            if (Keyboard.current != null && Keyboard.current.backquoteKey.wasPressedThisFrame)
+            {
+                _showDiagnosticsWindow = !_showDiagnosticsWindow;
+                AppendLog(_showDiagnosticsWindow ? "Diagnostics window shown." : "Diagnostics window hidden.");
+            }
+
             if (_client == null || !_client.IsConnected)
             {
+                EnsureUiToolkitOverlay();
                 return;
             }
 
@@ -143,6 +151,13 @@ namespace BatteryRushArena.NetworkSpike
 
         private void OnGUI()
         {
+            if (!_showDiagnosticsWindow)
+            {
+                return;
+            }
+
+            _window.x = Screen.width - _window.width - 16f;
+            _window.y = Screen.height - _window.height - 16f;
             _window = GUI.Window(4815, _window, DrawWindow, "Network Session Spike");
         }
 
@@ -167,92 +182,22 @@ namespace BatteryRushArena.NetworkSpike
 
         private void DrawWindow(int id)
         {
-            GUILayout.Label("Use two local players and one local server process for the spike.");
+            GUILayout.Label("Diagnostics only — canonical flow is UI Toolkit.");
             GUILayout.Space(6);
             GUILayout.Label($"Host: {_config.Host}:{_config.Port}");
-            GUILayout.Label("Player Name");
-            _playerName = GUILayout.TextField(_playerName);
             GUILayout.Label("Protocol Override (optional mismatch test)");
             _protocolVersionOverride = GUILayout.TextField(_protocolVersionOverride);
-            GUILayout.Label("Room Code");
-            _roomCode = GUILayout.TextField(_roomCode);
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Connect"))
-            {
-                if (_client != null)
-                {
-                    _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            }
-
-            if (GUILayout.Button("Create Room"))
-            {
-                _readyRequested = false;
-                if (_client != null)
-                {
-                    _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            }
-
-            if (GUILayout.Button("Join Room"))
-            {
-                _readyRequested = false;
-                if (_client != null)
-                {
-                    _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button(_readyRequested ? "Unset Ready" : "Set Ready"))
-            {
-                _readyRequested = !_readyRequested;
-                if (_client != null)
-                {
-                    _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Send Input Frame") && IsRoomState("Active"))
-            {
-                _tick += 1;
-                if (_client != null)
-                {
-                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), ReadAimVector(), Mouse.current != null && Mouse.current.leftButton.isPressed, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            }
-
             _autoHeartbeat = GUILayout.Toggle(_autoHeartbeat, "Auto heartbeat when idle");
             GUILayout.Label($"Connected: {(_client != null && _client.IsConnected)}");
-            GUILayout.Label($"Last Tick Sent: {_tick}");
-            GUILayout.Space(8);
-            GUILayout.Label($"Authoritative Room State: {_lastServerMessage.RoomState}");
-            GUILayout.Label($"Player Count: {_lastServerMessage.PlayerCount} / Ready: {_lastServerMessage.ReadyPlayers}");
-            GUILayout.Label($"Countdown Remaining: {_lastServerMessage.CountdownRemainingSeconds:F2}");
-            GUILayout.Label($"Match Time Remaining: {_lastServerMessage.MatchTimeRemainingSeconds:F2}");
-            GUILayout.Label($"End Reason: {_lastServerMessage.EndReason}");
-            GUILayout.Label($"Persistence Status: {_lastServerMessage.PersistenceStatus}");
-            GUILayout.Label($"Members: {string.Join(", ", _lastServerMessage.Members ?? Array.Empty<string>())}");
-            GUILayout.Label($"Scoreboard: {string.Join(" | ", _lastServerMessage.Scoreboard ?? Array.Empty<string>())}");
-            GUILayout.Label($"Active Batteries: {string.Join(", ", _lastServerMessage.ActiveBatteryIds ?? Array.Empty<int>())}");
-            GUILayout.Label($"Effects: {string.Join(" | ", _lastServerMessage.EffectStates ?? Array.Empty<string>())}");
-            GUILayout.Label($"Player Positions: {string.Join(" | ", _lastServerMessage.PlayerPositions ?? Array.Empty<string>())}");
-            if (IsRoomState("Active"))
-            {
-                GUILayout.Label("Move with WASD, aim with the mouse, and left click to drive authoritative pickup/trap/slow checks.");
-            }
-
-            GUILayout.Space(10);
-            GUILayout.Label("Authoritative Arena Preview");
-            var arenaRect = GUILayoutUtility.GetRect(780f, 340f, GUILayout.ExpandWidth(true));
-            DrawArenaPreview(arenaRect);
+            GUILayout.Label($"Room: {FormatValue(_roomCode)}");
+            GUILayout.Label($"State: {_lastServerMessage.RoomState}");
+            GUILayout.Label($"Players: {_lastServerMessage.PlayerCount} / Ready {_lastServerMessage.ReadyPlayers}");
+            GUILayout.Label($"Timer: {_lastServerMessage.MatchTimeRemainingSeconds:F1}s · Countdown {_lastServerMessage.CountdownRemainingSeconds:F1}s");
+            GUILayout.Label($"Toolkit assets loaded: {_toolkitUsesAuthoredAssets}");
 
             GUILayout.Space(8);
             GUILayout.Label("Logs:");
-            var startIndex = Mathf.Max(0, _logs.Count - 16);
+            var startIndex = Mathf.Max(0, _logs.Count - 8);
             for (var index = startIndex; index < _logs.Count; index++)
             {
                 GUILayout.Label(_logs[index]);
@@ -555,6 +500,8 @@ namespace BatteryRushArena.NetworkSpike
         public bool ToolkitOverlayBuiltForTesting => _uiRoot != null;
 
         public bool ToolkitUsesAuthoredAssetsForTesting => _toolkitUsesAuthoredAssets;
+
+        public bool UsesDiagnosticsOnlyImguiForTesting => !_showDiagnosticsWindow;
 
         public string ToolkitPreMatchTitleForTesting => _toolkitPreMatchTitleLabel?.text ?? string.Empty;
 
