@@ -130,7 +130,7 @@ namespace BatteryRushArena.NetworkSpike
 
             if (_autoHeartbeat)
             {
-                _ = _client.MaybeSendHeartbeatAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                _ = PumpHeartbeatAsync();
             }
 
             if (IsRoomState("Active"))
@@ -220,6 +220,21 @@ namespace BatteryRushArena.NetworkSpike
             RefreshPresentationSnapshot(message);
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
+        }
+
+        private async Task PumpHeartbeatAsync()
+        {
+            try
+            {
+                if (_client != null)
+                {
+                    await _client.MaybeSendHeartbeatAsync(GetLifetimeToken());
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Heartbeat failed: {ex.Message}");
+            }
         }
 
         private static Vector2 ReadMoveVector()

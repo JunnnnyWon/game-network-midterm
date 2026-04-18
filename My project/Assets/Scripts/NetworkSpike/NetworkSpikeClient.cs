@@ -32,24 +32,22 @@ namespace BatteryRushArena.NetworkSpike
         private NetworkStream _stream;
         private CancellationTokenSource _readerCts;
         private Task _readerTask;
-        private DateTimeOffset _lastGameplaySendUtc;
+        private DateTimeOffset _lastTransportSendUtc;
+        private bool _sessionEstablished;
 
         public NetworkSpikeClient(NetworkSpikeClientConfig config, Func<DateTimeOffset> clock = null)
         {
             _config = config;
             _clock = clock ?? (() => DateTimeOffset.UtcNow);
             _mainThreadContext = SynchronizationContext.Current;
-            _lastGameplaySendUtc = _clock();
+            _lastTransportSendUtc = _clock();
         }
 
         public event Action<SpikeServerMessage> MessageReceived;
 
         public event Action<string> LogEmitted;
 
-        public bool IsConnected =>
-            _tcpClient?.Client is { Connected: true } &&
-            _stream != null &&
-            _readerCts is { IsCancellationRequested: false };
+        public bool IsConnected => _sessionEstablished;
 
         public async Task ConnectAndHandshakeAsync(string playerName, string protocolVersionOverride = "", CancellationToken cancellationToken = default)
         {
@@ -103,6 +101,7 @@ namespace BatteryRushArena.NetworkSpike
                 throw new InvalidOperationException($"Handshake rejected: {helloResponse.Error} {helloResponse.Detail}".Trim());
             }
 
+            _sessionEstablished = true;
             _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
             LogEmitted?.Invoke($"Connected to {_config.Host}:{_config.Port}, handshake sent.");
@@ -124,12 +123,13 @@ namespace BatteryRushArena.NetworkSpike
                 return;
             }
 
-            if ((_clock() - _lastGameplaySendUtc).TotalSeconds < _config.HeartbeatIntervalSeconds)
+            if ((_clock() - _lastTransportSendUtc).TotalSeconds < _config.HeartbeatIntervalSeconds)
             {
                 return;
             }
 
             await SendAsync(new SpikeClientMessage { Type = "heartbeat" }, cancellationToken);
+            _lastTransportSendUtc = _clock();
             LogEmitted?.Invoke("Heartbeat sent.");
         }
 
@@ -145,7 +145,7 @@ namespace BatteryRushArena.NetworkSpike
                 AimY = aim.y,
                 FirePressed = firePressed
             }, cancellationToken);
-            _lastGameplaySendUtc = _clock();
+            _lastTransportSendUtc = _clock();
             LogEmitted?.Invoke($"Input frame sent tick={tick} move=({move.x:F2},{move.y:F2}) fire={firePressed}.");
         }
 
@@ -164,6 +164,7 @@ namespace BatteryRushArena.NetworkSpike
             try
             {
                 await LengthPrefixedProtocol.WriteAsync(_stream, message, cancellationToken);
+                _lastTransportSendUtc = _clock();
             }
             catch
             {
@@ -264,6 +265,7 @@ namespace BatteryRushArena.NetworkSpike
             _tcpClient = null;
             _readerTask = null;
             _readerCts = null;
+            _sessionEstablished = false;
         }
     }
 }

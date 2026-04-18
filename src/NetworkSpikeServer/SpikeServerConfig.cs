@@ -38,7 +38,7 @@ public sealed record SpikeServerConfig(
         Port: 7777,
         ProtocolVersion: "bra-spike-v1",
         HeartbeatInterval: TimeSpan.FromSeconds(2),
-        StaleTimeout: TimeSpan.FromSeconds(5),
+        StaleTimeout: TimeSpan.FromSeconds(30),
         MaxPlayersPerRoom: 2,
         MatchDuration: TimeSpan.FromSeconds(120),
         TargetScore: 10,
