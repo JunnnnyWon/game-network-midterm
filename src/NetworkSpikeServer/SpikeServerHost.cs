@@ -152,6 +152,21 @@ public sealed class SpikeServerHost
             return;
         }
 
+        var existingRoom = _roomRegistry.FindRoom(session);
+        if (existingRoom is not null)
+        {
+            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+            {
+                Type = "room_joined",
+                SessionId = session.SessionId,
+                RoomCode = existingRoom.RoomCode,
+                Detail = "already_joined",
+                RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
+            }, cancellationToken);
+            await BroadcastRoomAsync(existingRoom, "room_joined", cancellationToken);
+            return;
+        }
+
         _roomRegistry.Remove(session);
         var room = _roomRegistry.CreateRoom(session);
         await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
@@ -174,8 +189,36 @@ public sealed class SpikeServerHost
             return;
         }
 
+        var normalizedRoomCode = message.RoomCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedRoomCode))
+        {
+            await SendErrorAsync(session, "invalid_room_code", cancellationToken);
+            return;
+        }
+
+        var existingRoom = _roomRegistry.FindRoom(session);
+        if (existingRoom is not null)
+        {
+            if (string.Equals(existingRoom.RoomCode, normalizedRoomCode, StringComparison.OrdinalIgnoreCase))
+            {
+                await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+                {
+                    Type = "room_joined",
+                    SessionId = session.SessionId,
+                    RoomCode = existingRoom.RoomCode,
+                    Detail = "already_joined",
+                    RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
+                }, cancellationToken);
+                await BroadcastRoomAsync(existingRoom, "room_joined", cancellationToken);
+                return;
+            }
+
+            await SendErrorAsync(session, "already_in_room", cancellationToken);
+            return;
+        }
+
         _roomRegistry.Remove(session);
-        if (!_roomRegistry.TryJoinRoom(message.RoomCode, session, _config.MaxPlayersPerRoom, out var room, out var error))
+        if (!_roomRegistry.TryJoinRoom(normalizedRoomCode, session, _config.MaxPlayersPerRoom, out var room, out var error))
         {
             await SendErrorAsync(session, error, cancellationToken);
             return;
