@@ -134,6 +134,39 @@ public sealed class SpikeServerHost
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(message.PlayerName))
+        {
+            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+            {
+                Type = "hello_rejected",
+                Error = "invalid_player_name",
+                Detail = "player name is required"
+            }, cancellationToken);
+            session.TcpClient.Close();
+            return;
+        }
+
+        bool duplicatePlayerName;
+        lock (_sync)
+        {
+            duplicatePlayerName = _sessions.Any(existing =>
+                !string.IsNullOrWhiteSpace(existing.PlayerName) &&
+                !string.Equals(existing.SessionId, session.SessionId, StringComparison.Ordinal) &&
+                string.Equals(existing.PlayerName, message.PlayerName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (duplicatePlayerName)
+        {
+            await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+            {
+                Type = "hello_rejected",
+                Error = "duplicate_player_name",
+                Detail = message.PlayerName
+            }, cancellationToken);
+            session.TcpClient.Close();
+            return;
+        }
+
         session.PlayerName = message.PlayerName;
         await LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
         {

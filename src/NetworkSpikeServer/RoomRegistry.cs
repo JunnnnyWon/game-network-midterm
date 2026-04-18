@@ -5,6 +5,7 @@ namespace BatteryRushArena.NetworkSpikeServer;
 /// </summary>
 public sealed class RoomRegistry
 {
+    private const string FixedInitialRoomCode = "ROOM01";
     private readonly Dictionary<string, SpikeRoom> _rooms = new(StringComparer.OrdinalIgnoreCase);
     private readonly Random _random = new();
 
@@ -41,11 +42,18 @@ public sealed class RoomRegistry
         lock (SyncRoot)
         {
             string code;
-            do
+            if (!_rooms.ContainsKey(FixedInitialRoomCode))
             {
-                code = GenerateRoomCode();
+                code = FixedInitialRoomCode;
             }
-            while (_rooms.ContainsKey(code));
+            else
+            {
+                do
+                {
+                    code = GenerateRoomCode();
+                }
+                while (_rooms.ContainsKey(code));
+            }
 
             var room = new SpikeRoom(code);
             AddMember(room, session);
