@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -27,6 +28,7 @@ namespace BatteryRushArena.NetworkSpike
         private const float ToolkitCardWidth = 220f;
         private const float ToolkitCardHeight = 72f;
         private const string ToolkitOverlayResourcePath = "NetworkSpikeUI/NetworkSpikeOverlay";
+        private const string ToolkitThemeResourcePath = "NetworkSpikeUI/UnityDefaultRuntimeTheme";
         private static readonly Vector2[] BatterySpawnPreview =
         {
             new(0f, 0f),
@@ -73,6 +75,7 @@ namespace BatteryRushArena.NetworkSpike
         private PanelSettings _panelSettings;
         private VisualTreeAsset _toolkitOverlayAsset;
         private StyleSheet _toolkitOverlayStyleSheet;
+        private ThemeStyleSheet _toolkitThemeStyleSheet;
         private VisualElement _uiRoot;
         private VisualElement _preMatchOverlay;
         private VisualElement _activeHudOverlay;
@@ -97,6 +100,7 @@ namespace BatteryRushArena.NetworkSpike
         private bool _suppressToolkitFieldCallbacks;
         private bool _toolkitUsesAuthoredAssets;
         private static Sprite _solidSprite;
+        private Font _fallbackToolkitFont;
 
         private void Awake()
         {
@@ -842,6 +846,12 @@ namespace BatteryRushArena.NetworkSpike
             if (_panelSettings == null)
             {
                 _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+                _panelSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
+                _panelSettings.referenceResolution = new Vector2Int(1920, 1080);
+                _panelSettings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
+                _panelSettings.match = 0.5f;
+                _panelSettings.sortingOrder = 100;
+                _panelSettings.themeStyleSheet = LoadToolkitThemeStyleSheet();
             }
 
             if (_uiDocument == null)
@@ -880,13 +890,14 @@ namespace BatteryRushArena.NetworkSpike
         {
             _uiRoot.Clear();
             _uiRoot.style.flexGrow = 1f;
-            _uiRoot.pickingMode = PickingMode.Ignore;
+            _uiRoot.pickingMode = PickingMode.Position;
             if (_toolkitOverlayStyleSheet != null && !_uiRoot.styleSheets.Contains(_toolkitOverlayStyleSheet))
             {
                 _uiRoot.styleSheets.Add(_toolkitOverlayStyleSheet);
             }
 
             _toolkitOverlayAsset.CloneTree(_uiRoot);
+            ApplyToolkitFontDefaults();
             _preMatchOverlay = _uiRoot.Q<VisualElement>("prematch-overlay");
             _activeHudOverlay = _uiRoot.Q<VisualElement>("active-hud-overlay");
             _resultsOverlay = _uiRoot.Q<VisualElement>("results-overlay");
@@ -926,32 +937,21 @@ namespace BatteryRushArena.NetworkSpike
             {
                 _toolkitConnectButton.clicked += () =>
                 {
-                    if (_client != null)
-                    {
-                        _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                    }
+                    _ = ConnectFromUiAsync();
                 };
             }
             if (_toolkitCreateButton != null)
             {
                 _toolkitCreateButton.clicked += () =>
                 {
-                    _readyRequested = false;
-                    if (_client != null)
-                    {
-                        _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                    }
+                    _ = CreateRoomFromUiAsync();
                 };
             }
             if (_toolkitJoinButton != null)
             {
                 _toolkitJoinButton.clicked += () =>
                 {
-                    _readyRequested = false;
-                    if (_client != null)
-                    {
-                        _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                    }
+                    _ = JoinRoomFromUiAsync();
                 };
             }
             if (_toolkitReadyButton != null)
@@ -971,13 +971,15 @@ namespace BatteryRushArena.NetworkSpike
         {
             _uiRoot.Clear();
             _uiRoot.style.flexGrow = 1f;
-            _uiRoot.pickingMode = PickingMode.Ignore;
+            _uiRoot.pickingMode = PickingMode.Position;
 
             _preMatchOverlay = new VisualElement();
             _preMatchOverlay.style.position = Position.Absolute;
             _preMatchOverlay.style.left = ToolkitMargin;
             _preMatchOverlay.style.top = ToolkitMargin;
-            _preMatchOverlay.style.width = 420f;
+            _preMatchOverlay.style.width = new Length(32f, LengthUnit.Percent);
+            _preMatchOverlay.style.minWidth = 280f;
+            _preMatchOverlay.style.maxWidth = 420f;
             _preMatchOverlay.style.paddingLeft = 16f;
             _preMatchOverlay.style.paddingRight = 16f;
             _preMatchOverlay.style.paddingTop = 16f;
@@ -1022,34 +1024,22 @@ namespace BatteryRushArena.NetworkSpike
 
             var actionRow = new VisualElement();
             actionRow.style.flexDirection = FlexDirection.Row;
+            actionRow.style.flexWrap = Wrap.Wrap;
             actionRow.style.marginTop = 10f;
 
-            _toolkitConnectButton = new Button(() =>
-            {
-                if (_client != null)
-                {
-                    _ = _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            })
+            _toolkitConnectButton = new Button(() => _ = ConnectFromUiAsync())
             { text = "Connect" };
-            _toolkitCreateButton = new Button(() =>
-            {
-                _readyRequested = false;
-                if (_client != null)
-                {
-                    _ = _client.CreateRoomAsync(_lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            })
+            _toolkitCreateButton = new Button(() => _ = CreateRoomFromUiAsync())
             { text = "Create" };
-            _toolkitJoinButton = new Button(() =>
-            {
-                _readyRequested = false;
-                if (_client != null)
-                {
-                    _ = _client.JoinRoomAsync(_roomCode, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            })
+            _toolkitJoinButton = new Button(() => _ = JoinRoomFromUiAsync())
             { text = "Join" };
+
+            _toolkitConnectButton.style.minWidth = 96f;
+            _toolkitConnectButton.style.flexGrow = 1f;
+            _toolkitCreateButton.style.minWidth = 96f;
+            _toolkitCreateButton.style.flexGrow = 1f;
+            _toolkitJoinButton.style.minWidth = 96f;
+            _toolkitJoinButton.style.flexGrow = 1f;
 
             actionRow.Add(_toolkitConnectButton);
             actionRow.Add(_toolkitCreateButton);
@@ -1093,6 +1083,7 @@ namespace BatteryRushArena.NetworkSpike
             _activeHudOverlay.style.top = ToolkitMargin;
             _activeHudOverlay.style.right = ToolkitMargin;
             _activeHudOverlay.style.bottom = ToolkitMargin;
+            _activeHudOverlay.pickingMode = PickingMode.Ignore;
 
             var statusCard = CreateToolkitCard(ToolkitMargin, ToolkitMargin, ToolkitCardWidth, ToolkitCardHeight, "MATCH");
             _toolkitTopLabel = CreateToolkitValueLabel();
@@ -1128,6 +1119,8 @@ namespace BatteryRushArena.NetworkSpike
 
             var resultsCard = new VisualElement();
             resultsCard.style.width = 360f;
+            resultsCard.style.minWidth = 280f;
+            resultsCard.style.maxWidth = 360f;
             resultsCard.style.paddingLeft = 18f;
             resultsCard.style.paddingRight = 18f;
             resultsCard.style.paddingTop = 18f;
@@ -1162,6 +1155,38 @@ namespace BatteryRushArena.NetworkSpike
             resultsCard.Add(_toolkitResultsDetailLabel);
             _resultsOverlay.Add(resultsCard);
             _uiRoot.Add(_resultsOverlay);
+            ApplyToolkitFontDefaults();
+        }
+
+        private void ApplyToolkitFontDefaults()
+        {
+            if (_uiRoot == null)
+            {
+                return;
+            }
+
+            _fallbackToolkitFont ??= Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _fallbackToolkitFont ??= Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (_fallbackToolkitFont == null)
+            {
+                return;
+            }
+
+            var fontDefinition = FontDefinition.FromFont(_fallbackToolkitFont);
+            _uiRoot.style.unityFont = _fallbackToolkitFont;
+            _uiRoot.style.unityFontDefinition = fontDefinition;
+
+            foreach (var textElement in _uiRoot.Query<TextElement>().ToList())
+            {
+                textElement.style.unityFont = _fallbackToolkitFont;
+                textElement.style.unityFontDefinition = fontDefinition;
+            }
+        }
+
+        private ThemeStyleSheet LoadToolkitThemeStyleSheet()
+        {
+            _toolkitThemeStyleSheet ??= Resources.Load<ThemeStyleSheet>(ToolkitThemeResourcePath);
+            return _toolkitThemeStyleSheet;
         }
 
         private void RefreshUiToolkitOverlay()
@@ -1181,17 +1206,20 @@ namespace BatteryRushArena.NetworkSpike
 
             _suppressToolkitFieldCallbacks = true;
             _toolkitPlayerNameField.value = _playerName;
-            _toolkitRoomCodeField.value = _roomCode;
+            _toolkitRoomCodeField.value = NormalizeRoomCode(_roomCode);
             _suppressToolkitFieldCallbacks = false;
 
             _toolkitPreMatchTitleLabel.text = BuildPreMatchTitle();
             _toolkitPreMatchSummaryLabel.text = BuildPreMatchSummary();
             _toolkitPreMatchMembersLabel.text = BuildLobbyMembersSummary();
             _toolkitReadyButton.text = _readyRequested ? "Unset Ready" : "Set Ready";
-            _toolkitReadyButton.SetEnabled(IsAnyRoomState("Lobby", "Countdown"));
-            _toolkitConnectButton.SetEnabled(_client == null || !_client.IsConnected);
-            _toolkitCreateButton.SetEnabled(_client != null && _client.IsConnected && !IsRoomState("Countdown"));
-            _toolkitJoinButton.SetEnabled(_client != null && _client.IsConnected && !IsRoomState("Countdown"));
+            var isConnected = _client != null && _client.IsConnected;
+            var normalizedRoomCode = NormalizeRoomCode(_roomCode);
+            var canUsePreMatchActions = !IsRoomState("Countdown") && !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
+            _toolkitReadyButton.SetEnabled(isConnected && IsAnyRoomState("Lobby", "Countdown"));
+            _toolkitConnectButton.SetEnabled(!isConnected);
+            _toolkitCreateButton.SetEnabled(canUsePreMatchActions);
+            _toolkitJoinButton.SetEnabled(canUsePreMatchActions && !string.IsNullOrWhiteSpace(normalizedRoomCode));
             _toolkitCountdownLabel.style.display = IsRoomState("Countdown") ? DisplayStyle.Flex : DisplayStyle.None;
             _toolkitCountdownLabel.text = IsRoomState("Countdown")
                 ? $"Match starts in {Mathf.CeilToInt(Mathf.Max(0.1f, _lastServerMessage.CountdownRemainingSeconds))}"
@@ -1302,8 +1330,87 @@ namespace BatteryRushArena.NetworkSpike
                 return $"Room {FormatValue(_roomCode)} · Players {_lastServerMessage.PlayerCount} · Ready {_lastServerMessage.ReadyPlayers}";
             }
 
-            return $"Host {_config.Host}:{_config.Port}";
+            return $"Host {_config.Host}:{_config.Port} · Create/Join auto-connects";
         }
+
+        private async Task ConnectFromUiAsync()
+        {
+            if (_client == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await EnsureConnectedFromUiAsync();
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Connect failed: {ex.Message}");
+            }
+        }
+
+        private async Task CreateRoomFromUiAsync()
+        {
+            if (_client == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _readyRequested = false;
+                await EnsureConnectedFromUiAsync();
+                await _client.CreateRoomAsync(GetLifetimeToken());
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Create room failed: {ex.Message}");
+            }
+        }
+
+        private async Task JoinRoomFromUiAsync()
+        {
+            if (_client == null)
+            {
+                return;
+            }
+
+            var normalizedRoomCode = NormalizeRoomCode(_roomCode);
+            if (string.IsNullOrWhiteSpace(normalizedRoomCode))
+            {
+                AppendLog("Join room skipped: enter a room code first.");
+                return;
+            }
+
+            try
+            {
+                _readyRequested = false;
+                _roomCode = normalizedRoomCode;
+                await EnsureConnectedFromUiAsync();
+                await _client.JoinRoomAsync(normalizedRoomCode, GetLifetimeToken());
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Join room failed: {ex.Message}");
+            }
+        }
+
+        private async Task EnsureConnectedFromUiAsync()
+        {
+            if (_client == null || _client.IsConnected)
+            {
+                return;
+            }
+
+            await _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, GetLifetimeToken());
+        }
+
+        private CancellationToken GetLifetimeToken() =>
+            _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None;
+
+        private static string NormalizeRoomCode(string roomCode) =>
+            string.IsNullOrWhiteSpace(roomCode) ? string.Empty : roomCode.Trim().ToUpperInvariant();
 
         private string BuildLobbyMembersSummary()
         {

@@ -27,6 +27,7 @@ namespace BatteryRushArena.NetworkSpike
     {
         private readonly NetworkSpikeClientConfig _config;
         private readonly Func<DateTimeOffset> _clock;
+        private readonly SynchronizationContext _mainThreadContext;
         private TcpClient _tcpClient;
         private NetworkStream _stream;
         private CancellationTokenSource _readerCts;
@@ -37,6 +38,7 @@ namespace BatteryRushArena.NetworkSpike
         {
             _config = config;
             _clock = clock ?? (() => DateTimeOffset.UtcNow);
+            _mainThreadContext = SynchronizationContext.Current;
             _lastGameplaySendUtc = _clock();
         }
 
@@ -44,10 +46,18 @@ namespace BatteryRushArena.NetworkSpike
 
         public event Action<string> LogEmitted;
 
-        public bool IsConnected => _tcpClient != null && _tcpClient.Connected;
+        public bool IsConnected =>
+            _tcpClient?.Client is { Connected: true } &&
+            _stream != null &&
+            _readerCts is { IsCancellationRequested: false };
 
         public async Task ConnectAndHandshakeAsync(string playerName, string protocolVersionOverride = "", CancellationToken cancellationToken = default)
         {
+            if (_tcpClient != null && !IsConnected)
+            {
+                ResetConnectionState();
+            }
+
             if (IsConnected)
             {
                 return;
@@ -124,10 +134,7 @@ namespace BatteryRushArena.NetworkSpike
 
         public void Dispose()
         {
-            _readerCts?.Cancel();
-            _stream?.Dispose();
-            _tcpClient?.Dispose();
-            _readerCts?.Dispose();
+            ResetConnectionState();
         }
 
         private async Task SendAsync(SpikeClientMessage message, CancellationToken cancellationToken)
@@ -137,7 +144,15 @@ namespace BatteryRushArena.NetworkSpike
                 throw new InvalidOperationException("Client is not connected.");
             }
 
-            await LengthPrefixedProtocol.WriteAsync(_stream, message, cancellationToken);
+            try
+            {
+                await LengthPrefixedProtocol.WriteAsync(_stream, message, cancellationToken);
+            }
+            catch
+            {
+                ResetConnectionState();
+                throw;
+            }
         }
 
         private async Task ReadLoopAsync(CancellationToken cancellationToken)
@@ -157,17 +172,81 @@ namespace BatteryRushArena.NetworkSpike
                         break;
                     }
 
-                    MessageReceived?.Invoke(message);
-                    LogEmitted?.Invoke($"Server[{message.Type}] {message.Detail} {message.Error}".Trim());
+                    DispatchToMainThread(() => MessageReceived?.Invoke(message));
+                    DispatchToMainThread(() => LogEmitted?.Invoke($"Server[{message.Type}] {message.Detail} {message.Error}".Trim()));
                 }
             }
             catch (Exception ex) when (ex is SocketException || ex is InvalidDataException || ex is OperationCanceledException)
             {
                 if (!(ex is OperationCanceledException))
                 {
-                    LogEmitted?.Invoke($"Read loop stopped: {ex.Message}");
+                    DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
                 }
             }
+            catch (Exception ex)
+            {
+                DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop crashed: {ex.GetType().Name}: {ex.Message}"));
+            }
+            finally
+            {
+                ResetConnectionState();
+            }
+        }
+
+        private void DispatchToMainThread(Action action)
+        {
+            if (action == null)
+            {
+                return;
+            }
+
+            if (_mainThreadContext == null || SynchronizationContext.Current == _mainThreadContext)
+            {
+                action();
+                return;
+            }
+
+            _mainThreadContext.Post(_ => action(), null);
+        }
+
+        private void ResetConnectionState()
+        {
+            try
+            {
+                _readerCts?.Cancel();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _stream?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _tcpClient?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _readerCts?.Dispose();
+            }
+            catch
+            {
+            }
+
+            _stream = null;
+            _tcpClient = null;
+            _readerTask = null;
+            _readerCts = null;
         }
     }
 }

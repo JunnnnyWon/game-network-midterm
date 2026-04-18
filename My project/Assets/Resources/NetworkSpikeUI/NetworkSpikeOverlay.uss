@@ -23,7 +23,9 @@
     position: absolute;
     left: 16px;
     top: 16px;
-    width: 420px;
+    width: 32%;
+    min-width: 280px;
+    max-width: 420px;
 }
 
 .panel-title {
@@ -44,11 +46,15 @@
 
 .button-row {
     flex-direction: row;
+    flex-wrap: wrap;
     margin-top: 10px;
 }
 
 .action-button {
     margin-right: 6px;
+    margin-bottom: 6px;
+    min-width: 96px;
+    flex-grow: 1;
 }
 
 .ready-button {
@@ -128,7 +134,9 @@
 }
 
 .results-panel {
-    width: 360px;
+    width: 32%;
+    min-width: 280px;
+    max-width: 360px;
 }
 
 .results-score {
