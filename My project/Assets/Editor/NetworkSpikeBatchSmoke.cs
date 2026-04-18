@@ -446,6 +446,27 @@ namespace BatteryRushArena.Editor
                     return false;
                 }
 
+                var playerActorsBeforeHeartbeat = app.ScenePlayerActorCountForTesting;
+                app.ReceiveServerMessageForTesting(new SpikeServerMessage
+                {
+                    Type = "heartbeat_ack",
+                    SessionId = snapshot.SessionId,
+                    Detail = "alive",
+                    RoomListings = snapshot.RoomListings
+                });
+
+                if (!expectCountdown && app.ToolkitPreMatchTitleForTesting != "Lobby")
+                {
+                    Debug.LogError("Partial heartbeat update regressed the lobby title back out of the lobby state.");
+                    return false;
+                }
+
+                if (app.ScenePlayerActorCountForTesting < playerActorsBeforeHeartbeat)
+                {
+                    Debug.LogError("Partial heartbeat update hid scene-backed player actors during lobby setup.");
+                    return false;
+                }
+
                 Debug.Log(expectCountdown
                     ? "PASS: UI Toolkit countdown overlay mirrors the authoritative countdown snapshot."
                     : "PASS: UI Toolkit lobby overlay mirrors the authoritative lobby snapshot.");
