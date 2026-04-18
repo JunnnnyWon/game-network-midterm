@@ -235,6 +235,8 @@ namespace BatteryRushArena.NetworkSpike
                 return incoming;
             }
 
+            var authoritativeRoomSnapshot = string.Equals(incoming.Type, "room_snapshot", StringComparison.OrdinalIgnoreCase);
+
             return new SpikeServerMessage
             {
                 Type = string.IsNullOrWhiteSpace(incoming.Type) ? current.Type : incoming.Type,
@@ -244,21 +246,21 @@ namespace BatteryRushArena.NetworkSpike
                 Tick = incoming.Tick != 0 ? incoming.Tick : current.Tick,
                 Detail = string.IsNullOrWhiteSpace(incoming.Detail) ? current.Detail : incoming.Detail,
                 RoomState = string.IsNullOrWhiteSpace(incoming.RoomState) ? current.RoomState : incoming.RoomState,
-                PlayerCount = incoming.PlayerCount != 0 ? incoming.PlayerCount : current.PlayerCount,
-                ReadyPlayers = incoming.ReadyPlayers != 0 ? incoming.ReadyPlayers : current.ReadyPlayers,
-                CountdownRemainingSeconds = incoming.CountdownRemainingSeconds > 0f ? incoming.CountdownRemainingSeconds : current.CountdownRemainingSeconds,
+                PlayerCount = authoritativeRoomSnapshot ? incoming.PlayerCount : (incoming.PlayerCount != 0 ? incoming.PlayerCount : current.PlayerCount),
+                ReadyPlayers = authoritativeRoomSnapshot ? incoming.ReadyPlayers : (incoming.ReadyPlayers != 0 ? incoming.ReadyPlayers : current.ReadyPlayers),
+                CountdownRemainingSeconds = authoritativeRoomSnapshot ? incoming.CountdownRemainingSeconds : (incoming.CountdownRemainingSeconds > 0f ? incoming.CountdownRemainingSeconds : current.CountdownRemainingSeconds),
                 EndReason = string.IsNullOrWhiteSpace(incoming.EndReason) ? current.EndReason : incoming.EndReason,
                 PersistenceStatus = string.IsNullOrWhiteSpace(incoming.PersistenceStatus) ? current.PersistenceStatus : incoming.PersistenceStatus,
-                Members = incoming.Members != null && incoming.Members.Length > 0 ? incoming.Members : current.Members,
-                ReadyMembers = incoming.ReadyMembers != null && incoming.ReadyMembers.Length > 0 ? incoming.ReadyMembers : current.ReadyMembers,
-                RoomListings = incoming.RoomListings != null && incoming.RoomListings.Length > 0 ? incoming.RoomListings : current.RoomListings,
-                ActiveBatteryIds = incoming.ActiveBatteryIds != null && incoming.ActiveBatteryIds.Length > 0 ? incoming.ActiveBatteryIds : current.ActiveBatteryIds,
-                Scoreboard = incoming.Scoreboard != null && incoming.Scoreboard.Length > 0 ? incoming.Scoreboard : current.Scoreboard,
-                MatchTimeRemainingSeconds = incoming.MatchTimeRemainingSeconds > 0f ? incoming.MatchTimeRemainingSeconds : current.MatchTimeRemainingSeconds,
-                SlowShotCooldownRemainingSeconds = incoming.SlowShotCooldownRemainingSeconds > 0f ? incoming.SlowShotCooldownRemainingSeconds : current.SlowShotCooldownRemainingSeconds,
-                EffectStates = incoming.EffectStates != null && incoming.EffectStates.Length > 0 ? incoming.EffectStates : current.EffectStates,
-                PlayerPositions = incoming.PlayerPositions != null && incoming.PlayerPositions.Length > 0 ? incoming.PlayerPositions : current.PlayerPositions,
-                SlowShotReady = incoming.SlowShotReady || current.SlowShotReady
+                Members = authoritativeRoomSnapshot ? (incoming.Members ?? Array.Empty<string>()) : (incoming.Members != null && incoming.Members.Length > 0 ? incoming.Members : current.Members),
+                ReadyMembers = authoritativeRoomSnapshot ? (incoming.ReadyMembers ?? Array.Empty<string>()) : (incoming.ReadyMembers != null && incoming.ReadyMembers.Length > 0 ? incoming.ReadyMembers : current.ReadyMembers),
+                RoomListings = authoritativeRoomSnapshot ? (incoming.RoomListings ?? Array.Empty<string>()) : (incoming.RoomListings != null && incoming.RoomListings.Length > 0 ? incoming.RoomListings : current.RoomListings),
+                ActiveBatteryIds = authoritativeRoomSnapshot ? (incoming.ActiveBatteryIds ?? Array.Empty<int>()) : (incoming.ActiveBatteryIds != null && incoming.ActiveBatteryIds.Length > 0 ? incoming.ActiveBatteryIds : current.ActiveBatteryIds),
+                Scoreboard = authoritativeRoomSnapshot ? (incoming.Scoreboard ?? Array.Empty<string>()) : (incoming.Scoreboard != null && incoming.Scoreboard.Length > 0 ? incoming.Scoreboard : current.Scoreboard),
+                MatchTimeRemainingSeconds = authoritativeRoomSnapshot ? incoming.MatchTimeRemainingSeconds : (incoming.MatchTimeRemainingSeconds > 0f ? incoming.MatchTimeRemainingSeconds : current.MatchTimeRemainingSeconds),
+                SlowShotCooldownRemainingSeconds = authoritativeRoomSnapshot ? incoming.SlowShotCooldownRemainingSeconds : (incoming.SlowShotCooldownRemainingSeconds > 0f ? incoming.SlowShotCooldownRemainingSeconds : current.SlowShotCooldownRemainingSeconds),
+                EffectStates = authoritativeRoomSnapshot ? (incoming.EffectStates ?? Array.Empty<string>()) : (incoming.EffectStates != null && incoming.EffectStates.Length > 0 ? incoming.EffectStates : current.EffectStates),
+                PlayerPositions = authoritativeRoomSnapshot ? (incoming.PlayerPositions ?? Array.Empty<string>()) : (incoming.PlayerPositions != null && incoming.PlayerPositions.Length > 0 ? incoming.PlayerPositions : current.PlayerPositions),
+                SlowShotReady = authoritativeRoomSnapshot ? incoming.SlowShotReady : (incoming.SlowShotReady || current.SlowShotReady)
             };
         }
 

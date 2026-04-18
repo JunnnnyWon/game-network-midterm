@@ -467,6 +467,24 @@ namespace BatteryRushArena.Editor
                     return false;
                 }
 
+                app.ReceiveServerMessageForTesting(new SpikeServerMessage
+                {
+                    Type = "room_snapshot",
+                    RoomCode = roomCode,
+                    RoomState = "Lobby",
+                    PlayerCount = 2,
+                    ReadyPlayers = 0,
+                    Members = new[] { "PlayerA", "PlayerB" },
+                    ReadyMembers = Array.Empty<string>(),
+                    RoomListings = snapshot.RoomListings
+                });
+
+                if (app.ScenePlayerActorCountForTesting != 0)
+                {
+                    Debug.LogError("Authoritative lobby snapshot with no ready members did not hide the pre-match scene actors.");
+                    return false;
+                }
+
                 Debug.Log(expectCountdown
                     ? "PASS: UI Toolkit countdown overlay mirrors the authoritative countdown snapshot."
                     : "PASS: UI Toolkit lobby overlay mirrors the authoritative lobby snapshot.");
