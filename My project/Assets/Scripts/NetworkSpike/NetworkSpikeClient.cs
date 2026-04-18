@@ -79,8 +79,6 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             _stream = _tcpClient.GetStream();
-            _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
 
             await SendAsync(new SpikeClientMessage
             {
@@ -88,6 +86,25 @@ namespace BatteryRushArena.NetworkSpike
                 ProtocolVersion = string.IsNullOrWhiteSpace(protocolVersionOverride) ? _config.ProtocolVersion : protocolVersionOverride,
                 PlayerName = playerName
             }, cancellationToken);
+
+            var helloResponse = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(_stream, cancellationToken);
+            if (helloResponse == null)
+            {
+                ResetConnectionState();
+                throw new IOException("Handshake response was not received.");
+            }
+
+            DispatchToMainThread(() => MessageReceived?.Invoke(helloResponse));
+            DispatchToMainThread(() => LogEmitted?.Invoke($"Server[{helloResponse.Type}] {helloResponse.Detail} {helloResponse.Error}".Trim()));
+
+            if (string.Equals(helloResponse.Type, "hello_rejected", StringComparison.Ordinal))
+            {
+                ResetConnectionState();
+                throw new InvalidOperationException($"Handshake rejected: {helloResponse.Error} {helloResponse.Detail}".Trim());
+            }
+
+            _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
             LogEmitted?.Invoke($"Connected to {_config.Host}:{_config.Port}, handshake sent.");
         }
 
