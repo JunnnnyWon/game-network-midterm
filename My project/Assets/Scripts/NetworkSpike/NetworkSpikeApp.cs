@@ -218,7 +218,7 @@ namespace BatteryRushArena.NetworkSpike
                 _roomCode = message.RoomCode;
             }
 
-            RefreshPresentationSnapshot(message);
+            RefreshPresentationSnapshot(_lastServerMessage);
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
         }
@@ -535,6 +535,8 @@ namespace BatteryRushArena.NetworkSpike
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
         }
+
+        public void ReceiveServerMessageForTesting(SpikeServerMessage message) => OnMessageReceived(message);
 
         public int ScenePlayerActorCountForTesting => _scenePlayerRenderers.Count(pair => pair.Value != null && pair.Value.gameObject.activeSelf);
 
