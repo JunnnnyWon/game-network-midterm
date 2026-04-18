@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace BatteryRushArena.NetworkSpike
@@ -60,15 +61,26 @@ namespace BatteryRushArena.NetworkSpike
 
     internal static class LengthPrefixedProtocol
     {
+        private static readonly ConditionalWeakTable<NetworkStream, SemaphoreSlim> WriteLocks = new();
+
         public static async Task WriteAsync<T>(NetworkStream stream, T payload, CancellationToken cancellationToken)
         {
-            var json = JsonUtility.ToJson(payload);
-            var body = Encoding.UTF8.GetBytes(json);
-            var header = new byte[4];
-            BinaryPrimitives.WriteInt32BigEndian(header, body.Length);
-            await stream.WriteAsync(header, 0, header.Length, cancellationToken);
-            await stream.WriteAsync(body, 0, body.Length, cancellationToken);
-            await stream.FlushAsync(cancellationToken);
+            var writeLock = WriteLocks.GetValue(stream, _ => new SemaphoreSlim(1, 1));
+            await writeLock.WaitAsync(cancellationToken);
+            try
+            {
+                var json = JsonUtility.ToJson(payload);
+                var body = Encoding.UTF8.GetBytes(json);
+                var header = new byte[4];
+                BinaryPrimitives.WriteInt32BigEndian(header, body.Length);
+                await stream.WriteAsync(header, 0, header.Length, cancellationToken);
+                await stream.WriteAsync(body, 0, body.Length, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
+            finally
+            {
+                writeLock.Release();
+            }
         }
 
         public static async Task<T> ReadAsync<T>(NetworkStream stream, CancellationToken cancellationToken) where T : class
