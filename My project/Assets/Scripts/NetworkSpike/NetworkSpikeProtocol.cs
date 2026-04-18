@@ -50,6 +50,7 @@ namespace BatteryRushArena.NetworkSpike
         public string EndReason = string.Empty;
         public string PersistenceStatus = string.Empty;
         public string[] Members = Array.Empty<string>();
+        public string[] ReadyMembers = Array.Empty<string>();
         public string[] RoomListings = Array.Empty<string>();
         public int[] ActiveBatteryIds = Array.Empty<int>();
         public string[] Scoreboard = Array.Empty<string>();

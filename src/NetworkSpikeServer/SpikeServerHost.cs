@@ -481,6 +481,7 @@ public sealed class SpikeServerHost
         string endReason;
         string persistenceStatus;
         string[] members;
+        string[] readyMembers;
         string[] roomListings;
         int[] activeBatteryIds;
         string[] scoreboard;
@@ -509,6 +510,10 @@ public sealed class SpikeServerHost
                 _ => string.Empty
             };
             members = room.Members.Select(member => member.PlayerName).ToArray();
+            readyMembers = room.Members
+                .Where(member => room.ReadyBySessionId.GetValueOrDefault(member.SessionId))
+                .Select(member => member.PlayerName)
+                .ToArray();
             roomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom);
             activeBatteryIds = room.ActiveBatteryIds.ToArray();
             scoreboard = room.Members
@@ -559,6 +564,7 @@ public sealed class SpikeServerHost
                     EndReason = endReason,
                     PersistenceStatus = persistenceStatus,
                     Members = members,
+                    ReadyMembers = readyMembers,
                     RoomListings = roomListings,
                     ActiveBatteryIds = activeBatteryIds,
                     Scoreboard = scoreboard,

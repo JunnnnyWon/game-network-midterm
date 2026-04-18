@@ -250,6 +250,7 @@ namespace BatteryRushArena.NetworkSpike
                 EndReason = string.IsNullOrWhiteSpace(incoming.EndReason) ? current.EndReason : incoming.EndReason,
                 PersistenceStatus = string.IsNullOrWhiteSpace(incoming.PersistenceStatus) ? current.PersistenceStatus : incoming.PersistenceStatus,
                 Members = incoming.Members != null && incoming.Members.Length > 0 ? incoming.Members : current.Members,
+                ReadyMembers = incoming.ReadyMembers != null && incoming.ReadyMembers.Length > 0 ? incoming.ReadyMembers : current.ReadyMembers,
                 RoomListings = incoming.RoomListings != null && incoming.RoomListings.Length > 0 ? incoming.RoomListings : current.RoomListings,
                 ActiveBatteryIds = incoming.ActiveBatteryIds != null && incoming.ActiveBatteryIds.Length > 0 ? incoming.ActiveBatteryIds : current.ActiveBatteryIds,
                 Scoreboard = incoming.Scoreboard != null && incoming.Scoreboard.Length > 0 ? incoming.Scoreboard : current.Scoreboard,
@@ -524,8 +525,11 @@ namespace BatteryRushArena.NetworkSpike
             var scoresByName = ParseScores(message.Scoreboard);
             var positionsByName = ParsePositions(message.PlayerPositions);
             var effectsByName = ParseEffects(message.EffectStates);
+            var visibleMembers = IsRoomState("Active")
+                ? message.Members
+                : (message.ReadyMembers != null && message.ReadyMembers.Length > 0 ? message.ReadyMembers : Array.Empty<string>());
             _playerVisuals.Clear();
-            _playerVisuals.AddRange(BuildPlayerVisuals(message.Members, scoresByName, positionsByName, effectsByName));
+            _playerVisuals.AddRange(BuildPlayerVisuals(visibleMembers, scoresByName, positionsByName, effectsByName));
         }
 
         public void ApplyAuthoritativeSnapshotForTesting(SpikeServerMessage message)
@@ -1507,7 +1511,9 @@ namespace BatteryRushArena.NetworkSpike
                 return "Members: waiting for room";
             }
 
-            return "Players in room:\n- " + string.Join("\n- ", _lastServerMessage.Members);
+            var readySet = new HashSet<string>(_lastServerMessage.ReadyMembers ?? Array.Empty<string>(), StringComparer.Ordinal);
+            return "Players in room:\n- " + string.Join("\n- ", _lastServerMessage.Members.Select(member =>
+                readySet.Contains(member) ? $"{member} (Ready)" : $"{member} (Waiting)"));
         }
 
         private string BuildRoomListingsSummary()
