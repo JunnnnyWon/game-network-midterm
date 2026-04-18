@@ -565,6 +565,8 @@ namespace BatteryRushArena.NetworkSpike
 
         public string ToolkitPreMatchMembersForTesting => _toolkitPreMatchMembersLabel?.text ?? string.Empty;
 
+        public string ToolkitPreMatchRoomsForTesting => _toolkitPreMatchRoomsLabel?.text ?? string.Empty;
+
         private string BuildWinnerSummary()
         {
             if (_playerVisuals.Count == 0)

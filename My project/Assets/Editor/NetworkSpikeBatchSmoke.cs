@@ -440,6 +440,12 @@ namespace BatteryRushArena.Editor
                     return false;
                 }
 
+                if (!app.ToolkitPreMatchRoomsForTesting.Contains(roomCode, StringComparison.Ordinal))
+                {
+                    Debug.LogError("UI Toolkit pre-match overlay did not expose the available room listings.");
+                    return false;
+                }
+
                 Debug.Log(expectCountdown
                     ? "PASS: UI Toolkit countdown overlay mirrors the authoritative countdown snapshot."
                     : "PASS: UI Toolkit lobby overlay mirrors the authoritative lobby snapshot.");
