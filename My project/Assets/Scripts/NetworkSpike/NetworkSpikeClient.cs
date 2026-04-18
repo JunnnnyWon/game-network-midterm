@@ -32,6 +32,7 @@ namespace BatteryRushArena.NetworkSpike
         private NetworkStream _stream;
         private CancellationTokenSource _readerCts;
         private Task _readerTask;
+        private Task _heartbeatTask;
         private DateTimeOffset _lastTransportSendUtc;
         private bool _sessionEstablished;
 
@@ -104,6 +105,7 @@ namespace BatteryRushArena.NetworkSpike
             _sessionEstablished = true;
             _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
+            _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(_readerCts.Token), _readerCts.Token);
             LogEmitted?.Invoke($"Connected to {_config.Host}:{_config.Port}, handshake sent.");
         }
 
@@ -131,6 +133,25 @@ namespace BatteryRushArena.NetworkSpike
             await SendAsync(new SpikeClientMessage { Type = "heartbeat" }, cancellationToken);
             _lastTransportSendUtc = _clock();
             LogEmitted?.Invoke("Heartbeat sent.");
+        }
+
+        private async Task HeartbeatLoopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(0.25f, _config.HeartbeatIntervalSeconds * 0.5f)), cancellationToken);
+                    await MaybeSendHeartbeatAsync(cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                DispatchToMainThread(() => LogEmitted?.Invoke($"Heartbeat loop stopped: {ex.Message}"));
+            }
         }
 
         public async Task SendInputFrameAsync(int tick, Vector2 move, Vector2 aim, bool firePressed, CancellationToken cancellationToken = default)
@@ -264,6 +285,7 @@ namespace BatteryRushArena.NetworkSpike
             _stream = null;
             _tcpClient = null;
             _readerTask = null;
+            _heartbeatTask = null;
             _readerCts = null;
             _sessionEstablished = false;
         }

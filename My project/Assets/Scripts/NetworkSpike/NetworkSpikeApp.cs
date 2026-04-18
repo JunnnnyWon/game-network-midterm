@@ -212,7 +212,7 @@ namespace BatteryRushArena.NetworkSpike
 
         private void OnMessageReceived(SpikeServerMessage message)
         {
-            _lastServerMessage = message;
+            _lastServerMessage = MergeServerMessage(_lastServerMessage, message);
             if (!string.IsNullOrWhiteSpace(message.RoomCode))
             {
                 _roomCode = message.RoomCode;
@@ -221,6 +221,44 @@ namespace BatteryRushArena.NetworkSpike
             RefreshPresentationSnapshot(message);
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
+        }
+
+        private static SpikeServerMessage MergeServerMessage(SpikeServerMessage current, SpikeServerMessage incoming)
+        {
+            if (incoming == null)
+            {
+                return current ?? new SpikeServerMessage();
+            }
+
+            if (current == null)
+            {
+                return incoming;
+            }
+
+            return new SpikeServerMessage
+            {
+                Type = string.IsNullOrWhiteSpace(incoming.Type) ? current.Type : incoming.Type,
+                RoomCode = string.IsNullOrWhiteSpace(incoming.RoomCode) ? current.RoomCode : incoming.RoomCode,
+                SessionId = string.IsNullOrWhiteSpace(incoming.SessionId) ? current.SessionId : incoming.SessionId,
+                Error = string.IsNullOrWhiteSpace(incoming.Error) ? current.Error : incoming.Error,
+                Tick = incoming.Tick != 0 ? incoming.Tick : current.Tick,
+                Detail = string.IsNullOrWhiteSpace(incoming.Detail) ? current.Detail : incoming.Detail,
+                RoomState = string.IsNullOrWhiteSpace(incoming.RoomState) ? current.RoomState : incoming.RoomState,
+                PlayerCount = incoming.PlayerCount != 0 ? incoming.PlayerCount : current.PlayerCount,
+                ReadyPlayers = incoming.ReadyPlayers != 0 ? incoming.ReadyPlayers : current.ReadyPlayers,
+                CountdownRemainingSeconds = incoming.CountdownRemainingSeconds > 0f ? incoming.CountdownRemainingSeconds : current.CountdownRemainingSeconds,
+                EndReason = string.IsNullOrWhiteSpace(incoming.EndReason) ? current.EndReason : incoming.EndReason,
+                PersistenceStatus = string.IsNullOrWhiteSpace(incoming.PersistenceStatus) ? current.PersistenceStatus : incoming.PersistenceStatus,
+                Members = incoming.Members != null && incoming.Members.Length > 0 ? incoming.Members : current.Members,
+                RoomListings = incoming.RoomListings != null && incoming.RoomListings.Length > 0 ? incoming.RoomListings : current.RoomListings,
+                ActiveBatteryIds = incoming.ActiveBatteryIds != null && incoming.ActiveBatteryIds.Length > 0 ? incoming.ActiveBatteryIds : current.ActiveBatteryIds,
+                Scoreboard = incoming.Scoreboard != null && incoming.Scoreboard.Length > 0 ? incoming.Scoreboard : current.Scoreboard,
+                MatchTimeRemainingSeconds = incoming.MatchTimeRemainingSeconds > 0f ? incoming.MatchTimeRemainingSeconds : current.MatchTimeRemainingSeconds,
+                SlowShotCooldownRemainingSeconds = incoming.SlowShotCooldownRemainingSeconds > 0f ? incoming.SlowShotCooldownRemainingSeconds : current.SlowShotCooldownRemainingSeconds,
+                EffectStates = incoming.EffectStates != null && incoming.EffectStates.Length > 0 ? incoming.EffectStates : current.EffectStates,
+                PlayerPositions = incoming.PlayerPositions != null && incoming.PlayerPositions.Length > 0 ? incoming.PlayerPositions : current.PlayerPositions,
+                SlowShotReady = incoming.SlowShotReady || current.SlowShotReady
+            };
         }
 
         private async Task PumpHeartbeatAsync()
@@ -1242,7 +1280,8 @@ namespace BatteryRushArena.NetworkSpike
             _toolkitReadyButton.text = _readyRequested ? "Unset Ready" : "Set Ready";
             var isConnected = _client != null && _client.IsConnected;
             var normalizedRoomCode = NormalizeRoomCode(_roomCode);
-            var canUsePreMatchActions = !IsRoomState("Countdown") && !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
+            var hasJoinedRoomSession = isConnected && IsAnyRoomState("Lobby", "Countdown", "Active", "Ended", "Saving", "ResultsReady");
+            var canUsePreMatchActions = !hasJoinedRoomSession && !IsRoomState("Countdown") && !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
             _toolkitReadyButton.SetEnabled(isConnected && IsAnyRoomState("Lobby", "Countdown"));
             _toolkitConnectButton.SetEnabled(!isConnected);
             _toolkitCreateButton.SetEnabled(canUsePreMatchActions);
@@ -1384,6 +1423,12 @@ namespace BatteryRushArena.NetworkSpike
                 return;
             }
 
+            if (_client.IsConnected && IsAnyRoomState("Lobby", "Countdown", "Active", "Ended", "Saving", "ResultsReady"))
+            {
+                AppendLog($"Already in room {FormatValue(_roomCode)}. Leave or reconnect before creating another room.");
+                return;
+            }
+
             try
             {
                 _readyRequested = false;
@@ -1407,6 +1452,18 @@ namespace BatteryRushArena.NetworkSpike
             if (string.IsNullOrWhiteSpace(normalizedRoomCode))
             {
                 AppendLog("Join room skipped: enter a room code first.");
+                return;
+            }
+
+            if (_client.IsConnected && IsAnyRoomState("Lobby", "Countdown", "Active", "Ended", "Saving", "ResultsReady"))
+            {
+                if (string.Equals(normalizedRoomCode, NormalizeRoomCode(_lastServerMessage.RoomCode), StringComparison.Ordinal))
+                {
+                    AppendLog($"Already joined room {normalizedRoomCode}.");
+                    return;
+                }
+
+                AppendLog($"Already in room {FormatValue(_roomCode)}. Leave or reconnect before joining another room.");
                 return;
             }
 
