@@ -18,6 +18,21 @@ public sealed class RoomRegistry
         }
     }
 
+    public string[] SnapshotRoomListings(int maxPlayersPerRoom)
+    {
+        lock (SyncRoot)
+        {
+            return _rooms.Values
+                .OrderBy(room => room.RoomCode, StringComparer.Ordinal)
+                .Select(room =>
+                {
+                    var ready = room.ReadyBySessionId.Values.Count(value => value);
+                    return $"{room.RoomCode} · {room.Members.Count}/{maxPlayersPerRoom} · {room.State} · Ready {ready}";
+                })
+                .ToArray();
+        }
+    }
+
     /// <summary>
     /// Creates a new room and adds the provided client as the first member.
     /// </summary>

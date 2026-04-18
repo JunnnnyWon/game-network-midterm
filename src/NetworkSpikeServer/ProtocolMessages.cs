@@ -41,6 +41,7 @@ public sealed class ServerMessage
     public string EndReason { get; set; } = string.Empty;
     public string PersistenceStatus { get; set; } = string.Empty;
     public string[] Members { get; set; } = [];
+    public string[] RoomListings { get; set; } = [];
     public int[] ActiveBatteryIds { get; set; } = [];
     public string[] Scoreboard { get; set; } = [];
     public float MatchTimeRemainingSeconds { get; set; }

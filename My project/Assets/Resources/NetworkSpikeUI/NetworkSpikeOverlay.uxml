@@ -11,6 +11,7 @@
                 <ui:Button name="join-button" text="Join" class="action-button" />
             </ui:VisualElement>
             <ui:Label name="prematch-members" class="body-text" text="Members" />
+            <ui:Label name="prematch-rooms" class="body-text" text="Open rooms" />
             <ui:Button name="ready-button" text="Set Ready" class="action-button ready-button" />
             <ui:Label name="countdown-label" class="countdown-label" text="Match starts in 3" />
         </ui:VisualElement>

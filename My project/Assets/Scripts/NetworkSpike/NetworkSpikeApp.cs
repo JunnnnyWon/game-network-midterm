@@ -83,6 +83,7 @@ namespace BatteryRushArena.NetworkSpike
         private Label _toolkitPreMatchTitleLabel;
         private Label _toolkitPreMatchSummaryLabel;
         private Label _toolkitPreMatchMembersLabel;
+        private Label _toolkitPreMatchRoomsLabel;
         private Label _toolkitCountdownLabel;
         private Label _toolkitTopLabel;
         private Label _toolkitScoreLabel;
@@ -924,6 +925,7 @@ namespace BatteryRushArena.NetworkSpike
             _toolkitCreateButton = _uiRoot.Q<Button>("create-button");
             _toolkitJoinButton = _uiRoot.Q<Button>("join-button");
             _toolkitPreMatchMembersLabel = _uiRoot.Q<Label>("prematch-members");
+            _toolkitPreMatchRoomsLabel = _uiRoot.Q<Label>("prematch-rooms");
             _toolkitReadyButton = _uiRoot.Q<Button>("ready-button");
             _toolkitCountdownLabel = _uiRoot.Q<Label>("countdown-label");
             _toolkitTopLabel = _uiRoot.Q<Label>("toolkit-top-label");
@@ -1065,6 +1067,11 @@ namespace BatteryRushArena.NetworkSpike
             _toolkitPreMatchMembersLabel.style.whiteSpace = WhiteSpace.Normal;
             _toolkitPreMatchMembersLabel.style.color = new Color(0.95f, 0.97f, 1f, 1f);
 
+            _toolkitPreMatchRoomsLabel = new Label();
+            _toolkitPreMatchRoomsLabel.style.marginTop = 10f;
+            _toolkitPreMatchRoomsLabel.style.whiteSpace = WhiteSpace.Normal;
+            _toolkitPreMatchRoomsLabel.style.color = new Color(0.86f, 0.91f, 0.98f, 1f);
+
             _toolkitReadyButton = new Button(() =>
             {
                 _readyRequested = !_readyRequested;
@@ -1088,6 +1095,7 @@ namespace BatteryRushArena.NetworkSpike
             _preMatchOverlay.Add(_toolkitRoomCodeField);
             _preMatchOverlay.Add(actionRow);
             _preMatchOverlay.Add(_toolkitPreMatchMembersLabel);
+            _preMatchOverlay.Add(_toolkitPreMatchRoomsLabel);
             _preMatchOverlay.Add(_toolkitReadyButton);
             _preMatchOverlay.Add(_toolkitCountdownLabel);
             _uiRoot.Add(_preMatchOverlay);
@@ -1227,6 +1235,10 @@ namespace BatteryRushArena.NetworkSpike
             _toolkitPreMatchTitleLabel.text = BuildPreMatchTitle();
             _toolkitPreMatchSummaryLabel.text = BuildPreMatchSummary();
             _toolkitPreMatchMembersLabel.text = BuildLobbyMembersSummary();
+            if (_toolkitPreMatchRoomsLabel != null)
+            {
+                _toolkitPreMatchRoomsLabel.text = BuildRoomListingsSummary();
+            }
             _toolkitReadyButton.text = _readyRequested ? "Unset Ready" : "Set Ready";
             var isConnected = _client != null && _client.IsConnected;
             var normalizedRoomCode = NormalizeRoomCode(_roomCode);
@@ -1434,7 +1446,17 @@ namespace BatteryRushArena.NetworkSpike
                 return "Members: waiting for room";
             }
 
-            return "Members: " + string.Join(", ", _lastServerMessage.Members);
+            return "Players in room:\n- " + string.Join("\n- ", _lastServerMessage.Members);
+        }
+
+        private string BuildRoomListingsSummary()
+        {
+            if (_lastServerMessage.RoomListings == null || _lastServerMessage.RoomListings.Length == 0)
+            {
+                return "Open rooms: none yet";
+            }
+
+            return "Open rooms:\n- " + string.Join("\n- ", _lastServerMessage.RoomListings);
         }
 
         private static Color BuildPlayerSceneColor(PlayerVisualState player)

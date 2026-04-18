@@ -84,7 +84,8 @@ public sealed class SpikeServerHost
                         {
                             Type = "heartbeat_ack",
                             SessionId = session.SessionId,
-                            Detail = "alive"
+                            Detail = "alive",
+                            RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
                         }, cancellationToken);
                         break;
                     case "input_frame":
@@ -138,7 +139,8 @@ public sealed class SpikeServerHost
         {
             Type = "hello_accepted",
             SessionId = session.SessionId,
-            Detail = session.PlayerName
+            Detail = session.PlayerName,
+            RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
         }, cancellationToken);
     }
 
@@ -157,7 +159,8 @@ public sealed class SpikeServerHost
             Type = "room_joined",
             SessionId = session.SessionId,
             RoomCode = room.RoomCode,
-            Detail = "created"
+            Detail = "created",
+            RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
         }, cancellationToken);
         await BroadcastRoomAsync(room, "room_joined", cancellationToken);
         Console.WriteLine($"[server] room created {room.RoomCode} by {session.PlayerName}");
@@ -184,7 +187,8 @@ public sealed class SpikeServerHost
             Type = "room_joined",
             SessionId = session.SessionId,
             RoomCode = joinedRoom.RoomCode,
-            Detail = "joined"
+            Detail = "joined",
+            RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom)
         }, cancellationToken);
         await BroadcastRoomAsync(joinedRoom, "room_joined", cancellationToken);
         Console.WriteLine($"[server] room joined {joinedRoom.RoomCode} by {session.PlayerName}");
@@ -434,6 +438,7 @@ public sealed class SpikeServerHost
         string endReason;
         string persistenceStatus;
         string[] members;
+        string[] roomListings;
         int[] activeBatteryIds;
         string[] scoreboard;
         string[] effectStates;
@@ -461,6 +466,7 @@ public sealed class SpikeServerHost
                 _ => string.Empty
             };
             members = room.Members.Select(member => member.PlayerName).ToArray();
+            roomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom);
             activeBatteryIds = room.ActiveBatteryIds.ToArray();
             scoreboard = room.Members
                 .Select(member => $"{member.PlayerName}:{room.ScoreBySessionId.GetValueOrDefault(member.SessionId, 0)}")
@@ -510,6 +516,7 @@ public sealed class SpikeServerHost
                     EndReason = endReason,
                     PersistenceStatus = persistenceStatus,
                     Members = members,
+                    RoomListings = roomListings,
                     ActiveBatteryIds = activeBatteryIds,
                     Scoreboard = scoreboard,
                     EffectStates = effectStates,
