@@ -63,6 +63,7 @@ namespace BatteryRushArena.NetworkSpike
         private GUIStyle _fallbackPanelBodyStyle;
         private GUIStyle _fallbackPanelValueStyle;
         private GUIStyle _fallbackButtonStyle;
+        private GUIStyle _fallbackCompactButtonStyle;
         private GUIStyle _fallbackFieldStyle;
         private GUIStyle _fallbackFieldInputStyle;
         private GUIStyle _fallbackSectionLabelStyle;
@@ -250,17 +251,17 @@ namespace BatteryRushArena.NetworkSpike
             _roomCode = DrawFallbackTextField(new Rect(panelRect.x + 24f, panelRect.y + 216f, panelRect.width - 48f, 42f), _roomCode);
 
             var buttonWidth = (panelRect.width - 64f) / 3f;
-            if (DrawFallbackButton(new Rect(panelRect.x + 24f, panelRect.y + 278f, buttonWidth, 46f), "SYNC", false))
+            if (DrawFallbackButton(new Rect(panelRect.x + 24f, panelRect.y + 278f, buttonWidth, 46f), "SYNC", false, true))
             {
                 _ = ConnectFromUiAsync();
             }
 
-            if (DrawFallbackButton(new Rect(panelRect.x + 32f + buttonWidth, panelRect.y + 278f, buttonWidth, 46f), "HOST MATCH", true))
+            if (DrawFallbackButton(new Rect(panelRect.x + 32f + buttonWidth, panelRect.y + 278f, buttonWidth, 46f), "HOST MATCH", true, true))
             {
                 _ = CreateRoomFromUiAsync();
             }
 
-            if (DrawFallbackButton(new Rect(panelRect.x + 40f + (buttonWidth * 2f), panelRect.y + 278f, buttonWidth, 46f), "ENTER ROOM", false))
+            if (DrawFallbackButton(new Rect(panelRect.x + 40f + (buttonWidth * 2f), panelRect.y + 278f, buttonWidth, 46f), "ENTER ROOM", false, true))
             {
                 _ = JoinRoomFromUiAsync();
             }
@@ -1885,6 +1886,7 @@ namespace BatteryRushArena.NetworkSpike
                 _fallbackPanelBodyStyle != null &&
                 _fallbackPanelValueStyle != null &&
                 _fallbackButtonStyle != null &&
+                _fallbackCompactButtonStyle != null &&
                 _fallbackFieldStyle != null &&
                 _fallbackFieldInputStyle != null &&
                 _fallbackSectionLabelStyle != null)
@@ -1959,6 +1961,13 @@ namespace BatteryRushArena.NetworkSpike
             _fallbackButtonStyle.hover.textColor = Color.white;
             _fallbackButtonStyle.active.textColor = Color.white;
 
+            _fallbackCompactButtonStyle = new GUIStyle(_fallbackButtonStyle)
+            {
+                fontSize = 9
+            };
+            _fallbackCompactButtonStyle.hover.textColor = Color.white;
+            _fallbackCompactButtonStyle.active.textColor = Color.white;
+
             _fallbackFieldStyle = new GUIStyle(GUI.skin.box)
             {
                 alignment = TextAnchor.MiddleLeft,
@@ -2032,14 +2041,14 @@ namespace BatteryRushArena.NetworkSpike
             GUI.Label(new Rect(rect.x + 18f, rect.y + 34f, rect.width - 36f, rect.height - 42f), value, _fallbackPanelValueStyle);
         }
 
-        private bool DrawFallbackButton(Rect rect, string text, bool primary)
+        private bool DrawFallbackButton(Rect rect, string text, bool primary, bool compactText = false)
         {
             var hover = rect.Contains(Event.current.mousePosition);
             var fill = primary
                 ? (hover ? new Color(0.20f, 0.46f, 0.72f, 1f) : new Color(0.14f, 0.34f, 0.56f, 1f))
                 : (hover ? new Color(0.16f, 0.24f, 0.38f, 1f) : new Color(0.10f, 0.17f, 0.28f, 1f));
             DrawPanelChrome(rect, fill, new Color(0.48f, 0.74f, 0.94f, 0.9f));
-            GUI.Label(rect, text, _fallbackButtonStyle);
+            GUI.Label(rect, text, compactText ? _fallbackCompactButtonStyle : _fallbackButtonStyle);
             return GUI.Button(rect, GUIContent.none, GUIStyle.none);
         }
 
