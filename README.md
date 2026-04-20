@@ -1,245 +1,160 @@
-<p align="center">
-  <h1 align="center">Claude Code Game Studios — Codex Port</h1>
-  <p align="center">
-    A Codex-first, AGENTS.md-driven port of <strong>Claude Code Game Studios</strong>.<br/>
-    Turn one Codex CLI session into a structured game-dev studio with roles, workflows, QA gates, and reusable docs.
-  </p>
-</p>
+# Battery Rush Arena
 
-<p align="center">
-  <img src="https://img.shields.io/badge/runtime-Codex%20CLI-412991" alt="Codex CLI" />
-  <img src="https://img.shields.io/badge/config-AGENTS.md-blue" alt="AGENTS.md" />
-  <img src="https://img.shields.io/badge/skills-72-green" alt="72 skills" />
-  <img src="https://img.shields.io/badge/agents-49-blueviolet" alt="49 agents" />
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" />
-</p>
+게임네트워크기초 중간 과제를 위한 Unity 클라이언트 + 외부 C# 서버 + MySQL 구조의 멀티플레이 게임 프로젝트입니다.
 
-> [!IMPORTANT]
-> This repository is the **Codex-native port** of the original upstream project:
-> [`Donchitos/Claude-Code-Game-Studios`](https://github.com/Donchitos/Claude-Code-Game-Studios).
->
-> - **Active runtime surface for Codex:** `AGENTS.md`, `.codex/skills/`, `.codex/agents/`
-> - **Legacy/source reference:** `.claude/`, `CLAUDE.md`
->
-> If you are using **Codex CLI**, start from this README and `docs/CODEX-CLI-QUICKSTART.md`.
+이 저장소는 윈도우에서 빠르게 내려받아 이어서 구현하거나 발표할 수 있도록 다음 기준으로 정리되어 있습니다.
 
----
+- Unity 프로젝트는 저장소 루트가 아니라 `My project/` 입니다.
+- 서버는 `src/NetworkSpikeServer/` 에 있습니다.
+- DB 초기화 스크립트는 `docker/mysql/init/` 에 있습니다.
+- 로컬 캐시와 발표 산출물은 Git 추적 대상에서 제외합니다.
 
-## What is this?
+중요:
 
-This repo gives Codex a **structured game studio operating system** instead of a blank prompt.
+- Unity Hub에서는 저장소 루트가 아니라 `My project/` 폴더를 여세요.
+- 윈도우에서는 가능하면 `C:\dev\battery-rush-arena` 같은 짧은 ASCII 경로에 clone 하는 것을 권장합니다.
 
-Instead of one generic assistant trying to do everything, you get:
-- a studio hierarchy of specialized roles
-- workflow skills for concept, design, architecture, QA, release, and team coordination
-- documentation conventions for GDDs, ADRs, UX, and production artifacts
-- repo-local verification scripts and release evidence for the active Codex layer
+## 빠른 시작
 
-The goal is simple:
+### 필수 환경
 
-> **Use Codex CLI like a disciplined game-dev studio, not a random chat tab.**
+- Windows 10/11
+- Git for Windows
+- Unity Hub + Unity `6000.3.10f1`
+- Unity `Windows Build Support`
+- `.NET 10 SDK`
+- MySQL 8.x 또는 Docker Desktop
 
----
+### 가장 빠른 실행 순서
 
-## Why this port exists
+1. MySQL 실행
+2. 서버 실행
+3. Unity에서 `My project/` 열기
+4. `Assets/Scenes/SampleScene.unity` 열기
+5. Play 또는 Windows 빌드 실행
 
-The upstream template was built for **Claude Code**. It had strong workflow design, but its runtime assumptions were Claude-specific:
-- `CLAUDE.md`
-- `.claude/skills/*`
-- `.claude/agents/*`
-- `AskUserQuestion`
-- Claude hook/runtime expectations
+처음 Unity를 열 때는 패키지 복원 때문에 인터넷 연결과 Git 사용 가능 상태가 필요할 수 있습니다.
 
-This port keeps the studio design, but makes the repository **usable from Codex CLI** by introducing:
-- `AGENTS.md`
-- `.codex/skills/`
-- `.codex/agents/`
-- Codex runtime + orchestration contracts
-- Codex-specific smoke/release evidence
-
----
-
-## What you get
-
-| Category | Count | Notes |
-|---|---:|---|
-| Codex agents | 49 | Project-local `.codex/agents/*.toml` ports |
-| Codex skills | 72 | Project-local `.codex/skills/*/SKILL.md` |
-| Release-gate skills | 5 | The currently validated Codex-first path |
-| QA evidence artifacts | 6+ | Smoke, audit, release-gate proof |
-| Scoped AGENTS files | 5 | Root + directory-scoped Codex guidance |
-
-### Current release-gate skills
-These are the five workflows currently treated as the **validated Codex path**:
-- `start`
-- `brainstorm`
-- `setup-engine`
-- `design-system`
-- `create-architecture`
-
----
-
-## Quickstart
-
-### 1) Clone the repo
-```bash
-git clone https://github.com/JunnnnyWon/Codex-Game-Studios.git
-cd Codex-Game-Studios
-```
-
-### 2) Run verification first
-```bash
-python3 tools/codex/verify_port.py
-python3 tools/codex/qa_smoke.py
-python3 tools/codex/core5_audit.py
-```
-
-### 3) Launch Codex CLI
-```bash
-codex
-```
-
-### 4) Start the workflow
-Inside Codex:
-```text
-$start
-```
-
-### 5) Recommended first sequence
-```text
-$start
-$brainstorm open
-$setup-engine godot 4.6
-$design-system combat-system
-$create-architecture
-```
-
-For a dedicated usage guide, see:
-- [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md)
-
----
-
-## How to think about the repo
-
-### Active Codex surfaces
-Use these first:
-1. `AGENTS.md`
-2. `.codex/docs/runtime-contract.md`
-3. `.codex/skills/<skill>/SKILL.md`
-4. `.codex/agents/*.toml`
-5. `docs/CODEX-CLI-QUICKSTART.md`
-
-### Legacy reference surfaces
-These are preserved for lineage and incremental migration:
-- `CLAUDE.md`
-- `.claude/`
-- Claude-specific historical notes in older docs
-
----
-
-## Validation status
-
-### What is already proven
-The repo has durable evidence for the active Codex layer:
-- `tools/codex/verify_port.py`
-- `tools/codex/qa_smoke.py`
-- `tools/codex/core5_audit.py`
-- `production/qa/evidence/codex-port-smoke-2026-04-16.md`
-- `production/qa/evidence/codex-pipeline-audit-2026-04-16.md`
-- `production/qa/evidence/codex-core5-proof-2026-04-16.md`
-
-### What that means in practice
-This port is **usable in Codex CLI** for the intended release gate:
-- active runtime surface exists
-- core 5 workflows are present and checked
-- active Codex skills/agents parse cleanly
-- orchestration hygiene checks pass
-- onboarding/usage guidance exists in-repo
-
-### What is not yet claimed
-This repo does **not** claim that all 72 migrated workflows have been fully runtime-proven end-to-end in live Codex sessions.
-
-So the honest status is:
-- **Codex-usable:** yes
-- **Release-gate approved:** yes
-- **Every migrated workflow fully runtime-proven:** not yet
-
----
-
-## Workflow model
-
-The studio flow still follows the upstream philosophy:
-
-1. **Concept**
-2. **Systems Design**
-3. **Technical Setup**
-4. **Pre-Production**
-5. **Production**
-6. **Polish**
-7. **Release**
-
-And the collaboration rule remains:
-
-> **Question → Options → Decision → Draft → Approval**
-
-This matters because the port is not just about file conversion — it is about preserving the workflow discipline in Codex.
-
----
-
-## Project structure
+## 프로젝트 구조
 
 ```text
-AGENTS.md                           # Codex-native root runtime contract
-CLAUDE.md                           # Legacy Claude-first reference
-.codex/                             # Active Codex-native skills, agents, docs
-.claude/                            # Upstream/legacy reference surfaces
-src/                                # Game source code
-assets/                             # Art, audio, VFX, shaders, data
-design/                             # GDDs, narrative docs, levels, UX
-docs/                               # Architecture, migration, workflow docs
-tests/                              # Test suites
-tools/                              # Verification and helper scripts
-prototypes/                         # Throwaway prototypes
-production/                         # QA evidence, sprint/release artifacts
+My project/                 Unity 클라이언트 프로젝트
+src/NetworkSpikeServer/     외부 C# 서버
+docker/mysql/init/          MySQL 초기 스키마
+docker-compose.mysql.yml    Docker 기반 MySQL 실행 설정
+docs/                       배포/구조/아키텍처 문서
+design/                     게임 기획 문서
+production/                 구현 진행 문서
+prototypes/                 초기 실험 및 리포트
 ```
 
----
+구조 설명은 [docs/repository-layout.md](/Users/junnnny/Desktop/학교/네트워크프로그래밍/중간/docs/repository-layout.md:1), 윈도우 발표 배포는 [docs/windows-demo-deployment.md](/Users/junnnny/Desktop/학교/네트워크프로그래밍/중간/docs/windows-demo-deployment.md:1) 에 정리되어 있습니다.
 
-## Repo-specific Codex docs
+## 핵심 구성
 
-- [`docs/CODEX-CLI-QUICKSTART.md`](docs/CODEX-CLI-QUICKSTART.md)
-- [`docs/CODEX-MIGRATION.md`](docs/CODEX-MIGRATION.md)
-- [`docs/CODEX-RELEASE-CHECKLIST.md`](docs/CODEX-RELEASE-CHECKLIST.md)
-- [`.codex/docs/runtime-contract.md`](.codex/docs/runtime-contract.md)
-- [`.codex/docs/orchestration-contract.md`](.codex/docs/orchestration-contract.md)
-- [`.codex/docs/source-surface-mapping.md`](.codex/docs/source-surface-mapping.md)
+### Unity 클라이언트
 
----
+- 경로: `My project/`
+- 주요 스크립트: `My project/Assets/Scripts/NetworkSpike/`
+- 역할:
+  - 플레이어 입력 처리
+  - 룸 생성/참가 UI
+  - 서버 스냅샷 수신 및 화면 반영
+  - 결과/리더보드 표시
 
-## Contributing
+### 외부 C# 서버
 
-If you want to improve this port, the highest-value areas are:
-1. **runtime-proving more workflows beyond the core 5**
-2. **making team/orchestration flows more deeply Codex-native**
-3. **reducing Claude-first historical wording in non-critical docs**
-4. **expanding repo-local QA evidence**
+- 경로: `src/NetworkSpikeServer/`
+- 진입점: `src/NetworkSpikeServer/Program.cs`
+- 역할:
+  - TCP 연결 수락
+  - 룸 상태 관리
+  - authoritative 이동/점수/상태 판정
+  - 경기 종료 후 MySQL 저장
 
-If you change the active Codex surface, refresh the smoke evidence:
-```bash
-python3 tools/codex/verify_port.py
-python3 tools/codex/qa_smoke.py
-python3 tools/codex/core5_audit.py
+### MySQL
+
+- Compose 설정: `docker-compose.mysql.yml`
+- 초기 스키마: `docker/mysql/init/001-ckgame.sql`
+- 역할:
+  - 경기 결과 저장
+  - 플레이어 승/무/패 및 최고 점수 집계
+  - 리더보드 조회
+
+## 윈도우 실행 방법
+
+### 방법 A. 로컬 MySQL 사용
+
+이미 윈도우에 MySQL이 설치되어 있으면 Docker 없이도 실행할 수 있습니다.
+
+1. MySQL 서버 실행
+2. `ckgame` 스키마 생성
+3. 서버 실행
+4. Unity 실행
+
+초기 스키마 적용:
+
+```powershell
+mysql -u root -p < .\docker\mysql\init\001-ckgame.sql
 ```
 
----
+서버 실행 전에 환경변수로 DB 계정을 맞출 수 있습니다.
 
-## Credits
+```powershell
+$env:MYSQL_HOST="127.0.0.1"
+$env:MYSQL_PORT="3306"
+$env:MYSQL_DATABASE="ckgame"
+$env:MYSQL_USER="root"
+$env:MYSQL_PASSWORD="비밀번호"
+dotnet run --project .\src\NetworkSpikeServer
+```
 
-- **Original upstream project:** [`Donchitos/Claude-Code-Game-Studios`](https://github.com/Donchitos/Claude-Code-Game-Studios)
-- **This fork:** Codex-native port and release-gate adaptation by [`JunnnnyWon`](https://github.com/JunnnnyWon)
+### 방법 B. Docker MySQL 사용
 
----
+```powershell
+docker compose -f docker-compose.mysql.yml up -d
+docker compose -f docker-compose.mysql.yml ps
+dotnet run --project .\src\NetworkSpikeServer
+```
 
-## License
+`docker compose ps` 에서 MySQL 컨테이너가 `healthy` 가 된 뒤 서버를 실행하는 것을 권장합니다.
 
-MIT — see [`LICENSE`](LICENSE).
+### Unity 실행
+
+Unity Hub에서 이 저장소를 연 뒤, 반드시 `My project/` 폴더를 프로젝트로 여세요.
+
+- Unity 버전: `6000.3.10f1`
+- 시작 씬: `Assets/Scenes/SampleScene.unity`
+
+## 기본 접속값
+
+- 게임 서버: `127.0.0.1:7777`
+- MySQL: `127.0.0.1:3306`
+- 데이터베이스: `ckgame`
+- 기본 계정: `ckgame_user`
+- 기본 비밀번호: `ckgame_pass`
+
+## 발표용 추천 동선
+
+1. 서버와 MySQL을 같은 윈도우 PC에서 실행
+2. Unity 에디터로 한 명 접속
+3. Windows 빌드 exe 또는 두 번째 실행본으로 한 명 더 접속
+4. 첫 번째 클라이언트에서 방 생성
+5. 두 번째 클라이언트에서 룸 코드 입력 후 참가
+6. 두 명 모두 Ready
+7. 경기 종료 후 결과와 leaderboard 확인
+
+## 네트워크 흐름
+
+1. Unity가 TCP로 서버에 접속합니다.
+2. 서버가 룸 생성, 참가, ready, 경기 시작을 처리합니다.
+3. 경기 중 클라이언트는 입력만 보내고 서버가 판정을 담당합니다.
+4. 서버가 현재 상태를 스냅샷으로 다시 클라이언트에 보냅니다.
+5. 경기 종료 후 서버가 MySQL에 결과를 저장하고 리더보드를 반환합니다.
+
+## 비고
+
+- Unity 클라이언트는 MySQL에 직접 접속하지 않습니다.
+- DB 접근은 서버에서만 수행합니다.
+- 현재 기본 설정은 단일 PC 발표에 가장 잘 맞습니다.
+- 여러 PC 데모를 하려면 서버 host와 클라이언트 host를 실제 LAN IP 기준으로 바꿔야 합니다.

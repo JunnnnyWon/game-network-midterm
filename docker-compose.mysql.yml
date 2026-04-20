@@ -1,0 +1,23 @@
+services:
+  ckgame-mysql:
+    image: mysql:8.4
+    container_name: ckgame-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: ckgame
+      MYSQL_USER: ckgame_user
+      MYSQL_PASSWORD: ckgame_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - ckgame_mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  ckgame_mysql_data:

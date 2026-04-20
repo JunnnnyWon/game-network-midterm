@@ -18,16 +18,26 @@ public sealed class SpikeRoom
     public Dictionary<string, int> ScoreBySessionId { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, SpikeVec2> PlayerPositionsBySessionId { get; } = new(StringComparer.Ordinal);
     public List<int> ActiveBatteryIds { get; } = new();
+    public Dictionary<int, SpikeVec2> BatteryPositionsById { get; } = new();
+    public Dictionary<int, SpikeVec2> TrapPositionsById { get; } = new();
     public Dictionary<int, DateTimeOffset> PendingRespawns { get; } = new();
     public Queue<int> RecentSpawnHistory { get; } = new();
     public Dictionary<string, PlayerEffectState> EffectsBySessionId { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, DateTimeOffset> SlowShotReadyAtBySessionId { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, DateTimeOffset> TrapRetriggerReadyAtBySessionTrapKey { get; } = new(StringComparer.Ordinal);
+    public string HostSessionId { get; set; } = string.Empty;
     public SpikeRoomState State { get; set; }
     public DateTimeOffset StateEnteredUtc { get; set; }
     public DateTimeOffset CountdownEndsUtc { get; set; }
     public DateTimeOffset ActiveEndsUtc { get; set; }
+    public int SnapshotSequence { get; set; }
     public string EndReason { get; set; } = string.Empty;
+    public string ForfeitingPlayerName { get; set; } = string.Empty;
+    public string PersistenceStatus { get; set; } = string.Empty;
+    public string PersistenceDetail { get; set; } = string.Empty;
+    public MatchResultPayload? PendingMatchResult { get; set; }
+    public Task<PersistenceAttemptResult>? PersistenceTask { get; set; }
+    public string[] LeaderboardRows { get; set; } = [];
 
 }
 

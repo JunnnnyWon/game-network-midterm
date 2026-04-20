@@ -20,6 +20,7 @@ namespace BatteryRushArena.NetworkSpike
         public string ProtocolVersion = string.Empty;
         public string PlayerName = string.Empty;
         public string RoomCode = string.Empty;
+        public long ClientSentAtUnixMs;
         public int Tick;
         public float MoveX;
         public float MoveY;
@@ -27,6 +28,7 @@ namespace BatteryRushArena.NetworkSpike
         public float AimY;
         public bool FirePressed;
         public bool IsReady;
+        public bool StartRequested;
         public int BatteryId;
         public int TrapId;
     }
@@ -44,17 +46,28 @@ namespace BatteryRushArena.NetworkSpike
         public int Tick;
         public string Detail = string.Empty;
         public string RoomState = string.Empty;
+        public string HostSessionId = string.Empty;
+        public string HostPlayerName = string.Empty;
         public int PlayerCount;
         public int ReadyPlayers;
         public float CountdownRemainingSeconds;
         public string EndReason = string.Empty;
         public string PersistenceStatus = string.Empty;
+        public string PersistenceDetail = string.Empty;
         public string[] Members = Array.Empty<string>();
         public string[] ReadyMembers = Array.Empty<string>();
         public string[] RoomListings = Array.Empty<string>();
         public int[] ActiveBatteryIds = Array.Empty<int>();
+        public string[] BatteryPositions = Array.Empty<string>();
+        public string[] TrapPositions = Array.Empty<string>();
         public string[] Scoreboard = Array.Empty<string>();
+        public string[] LeaderboardRows = Array.Empty<string>();
         public float MatchTimeRemainingSeconds;
+        public long ServerSentAtUnixMs;
+        public int SnapshotSequence;
+        public int LastProcessedClientTick;
+        public float HeartbeatAgeSeconds;
+        public long ClientSentAtUnixMs;
         public float SlowShotCooldownRemainingSeconds;
         public string[] EffectStates = Array.Empty<string>();
         public string[] PlayerPositions = Array.Empty<string>();

@@ -5,9 +5,8 @@ namespace BatteryRushArena.NetworkSpikeServer;
 /// </summary>
 public sealed class RoomRegistry
 {
-    private const string FixedInitialRoomCode = "ROOM01";
     private readonly Dictionary<string, SpikeRoom> _rooms = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Random _random = new();
+    private int _nextRoomNumber = 1;
 
     public object SyncRoot { get; } = new();
 
@@ -27,6 +26,7 @@ public sealed class RoomRegistry
                 .OrderBy(room => room.RoomCode, StringComparer.Ordinal)
                 .Select(room =>
                 {
+                    EnsureHostAssignedUnsafe(room);
                     var ready = room.ReadyBySessionId.Values.Count(value => value);
                     return $"{room.RoomCode} · {room.Members.Count}/{maxPlayersPerRoom} · {room.State} · Ready {ready}";
                 })
@@ -41,22 +41,11 @@ public sealed class RoomRegistry
     {
         lock (SyncRoot)
         {
-            string code;
-            if (!_rooms.ContainsKey(FixedInitialRoomCode))
-            {
-                code = FixedInitialRoomCode;
-            }
-            else
-            {
-                do
-                {
-                    code = GenerateRoomCode();
-                }
-                while (_rooms.ContainsKey(code));
-            }
+            var code = GenerateNextRoomCode();
 
             var room = new SpikeRoom(code);
             AddMember(room, session);
+            room.HostSessionId = session.SessionId;
             _rooms[code] = room;
             return room;
         }
@@ -82,6 +71,7 @@ public sealed class RoomRegistry
             }
 
             AddMember(room, session);
+            EnsureHostAssignedUnsafe(room);
             error = string.Empty;
             return true;
         }
@@ -98,6 +88,7 @@ public sealed class RoomRegistry
                 return false;
             }
 
+            EnsureHostAssignedUnsafe(foundRoom);
             foundRoom.ReadyBySessionId[session.SessionId] = isReady;
             room = foundRoom;
             return true;
@@ -119,40 +110,80 @@ public sealed class RoomRegistry
     {
         lock (SyncRoot)
         {
-            string? emptyRoom = null;
             SpikeRoom? affectedRoom = null;
             foreach (var room in _rooms.Values)
             {
                 if (room.Members.Remove(session))
                 {
                     room.ReadyBySessionId.Remove(session.SessionId);
+                    room.ScoreBySessionId.Remove(session.SessionId);
+                    room.PlayerPositionsBySessionId.Remove(session.SessionId);
+                    room.EffectsBySessionId.Remove(session.SessionId);
+                    room.SlowShotReadyAtBySessionId.Remove(session.SessionId);
+                    foreach (var trapKey in room.TrapRetriggerReadyAtBySessionTrapKey.Keys
+                                 .Where(key => key.StartsWith(session.SessionId + ":", StringComparison.Ordinal))
+                                 .ToArray())
+                    {
+                        room.TrapRetriggerReadyAtBySessionTrapKey.Remove(trapKey);
+                    }
+
                     affectedRoom = room;
                     if (room.Members.Count == 0)
                     {
-                        emptyRoom = room.RoomCode;
+                        ResetEmptyRoomUnsafe(room);
+                    }
+                    else if (string.Equals(room.HostSessionId, session.SessionId, StringComparison.Ordinal))
+                    {
+                        room.HostSessionId = room.Members[0].SessionId;
                     }
                     break;
                 }
             }
 
-            if (emptyRoom is not null)
-            {
-                _rooms.Remove(emptyRoom);
-                return null;
-            }
-
+            session.RoomCode = string.Empty;
             return affectedRoom;
         }
     }
 
+    private static void ResetEmptyRoomUnsafe(SpikeRoom room)
+    {
+        room.State = SpikeRoomState.Lobby;
+        room.StateEnteredUtc = DateTimeOffset.UtcNow;
+        room.CountdownEndsUtc = DateTimeOffset.MinValue;
+        room.ActiveEndsUtc = DateTimeOffset.MinValue;
+        room.SnapshotSequence = 0;
+        room.EndReason = string.Empty;
+        room.ForfeitingPlayerName = string.Empty;
+        room.PersistenceStatus = string.Empty;
+        room.PersistenceDetail = string.Empty;
+        room.PendingMatchResult = null;
+        room.PersistenceTask = null;
+        room.LeaderboardRows = [];
+        room.HostSessionId = string.Empty;
+        room.ActiveBatteryIds.Clear();
+        room.BatteryPositionsById.Clear();
+        room.PendingRespawns.Clear();
+        room.RecentSpawnHistory.Clear();
+    }
+
     private SpikeRoom? FindRoomUnsafe(ClientSession session)
     {
-        return _rooms.Values.FirstOrDefault(room => room.Members.Contains(session));
+        var room = _rooms.Values.FirstOrDefault(candidate => candidate.Members.Contains(session));
+        if (room is not null)
+        {
+            EnsureHostAssignedUnsafe(room);
+        }
+
+        return room;
     }
 
     private void AddMember(SpikeRoom room, ClientSession session)
     {
         room.Members.Add(session);
+        if (string.IsNullOrWhiteSpace(room.HostSessionId))
+        {
+            room.HostSessionId = session.SessionId;
+        }
         room.ReadyBySessionId[session.SessionId] = false;
         room.ScoreBySessionId[session.SessionId] = 0;
         room.EffectsBySessionId[session.SessionId] = new PlayerEffectState();
@@ -161,9 +192,31 @@ public sealed class RoomRegistry
         session.RoomCode = room.RoomCode;
     }
 
-    private string GenerateRoomCode()
+    private static void EnsureHostAssignedUnsafe(SpikeRoom room)
     {
-        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        return new string(Enumerable.Range(0, 6).Select(_ => alphabet[_random.Next(alphabet.Length)]).ToArray());
+        if (room.Members.Count == 0)
+        {
+            room.HostSessionId = string.Empty;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(room.HostSessionId) ||
+            room.Members.All(member => !string.Equals(member.SessionId, room.HostSessionId, StringComparison.Ordinal)))
+        {
+            room.HostSessionId = room.Members[0].SessionId;
+        }
+    }
+
+    private string GenerateNextRoomCode()
+    {
+        string code;
+        do
+        {
+            code = FormattableString.Invariant($"ROOM{_nextRoomNumber:00}");
+            _nextRoomNumber += 1;
+        }
+        while (_rooms.ContainsKey(code));
+
+        return code;
     }
 }

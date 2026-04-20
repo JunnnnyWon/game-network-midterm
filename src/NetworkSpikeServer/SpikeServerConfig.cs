@@ -18,17 +18,24 @@ public sealed record SpikeServerConfig(
     TimeSpan SlowShotCooldown,
     float SlowShotMoveMultiplier,
     TimeSpan SlowShotDuration,
+    int ActiveTrapCount,
     float TrapMoveMultiplier,
     TimeSpan TrapDuration,
     TimeSpan TrapRetriggerCooldown,
+    float TrapSpawnInset,
+    float TrapSpawnMinimumSeparation,
+    int TrapSpawnGenerationAttempts,
     TimeSpan PostSlowImmunity,
     float PlayerStepDistance,
+    float PlayerBoundsInset,
     float BatteryPickupRadius,
+    float BatterySpawnInset,
+    float BatterySpawnMinimumSeparation,
+    int BatterySpawnGenerationAttempts,
     float TrapTriggerRadius,
     float SlowShotRange,
-    SpikeVec2[] PlayerSpawnPoints,
-    SpikeVec2[] BatterySpawnPoints,
-    SpikeVec2[] TrapCenters)
+    float ArenaHalfExtent,
+    SpikeVec2[] PlayerSpawnPoints)
 {
     /// <summary>
     /// Creates the default spike configuration aligned with ADR-0001 and ADR-0005.
@@ -48,33 +55,26 @@ public sealed record SpikeServerConfig(
         SlowShotCooldown: TimeSpan.FromSeconds(4),
         SlowShotMoveMultiplier: 0.65f,
         SlowShotDuration: TimeSpan.FromSeconds(1.25),
+        ActiveTrapCount: 4,
         TrapMoveMultiplier: 0.80f,
         TrapDuration: TimeSpan.FromSeconds(0.75),
         TrapRetriggerCooldown: TimeSpan.FromSeconds(1.5),
+        TrapSpawnInset: 0.9f,
+        TrapSpawnMinimumSeparation: 1.6f,
+        TrapSpawnGenerationAttempts: 24,
         PostSlowImmunity: TimeSpan.FromSeconds(0.5),
         PlayerStepDistance: 0.75f,
+        PlayerBoundsInset: 0.35f,
         BatteryPickupRadius: 0.65f,
+        BatterySpawnInset: 0.9f,
+        BatterySpawnMinimumSeparation: 1.6f,
+        BatterySpawnGenerationAttempts: 24,
         TrapTriggerRadius: 0.65f,
         SlowShotRange: 3.5f,
+        ArenaHalfExtent: 7.25f,
         PlayerSpawnPoints:
         [
-            new SpikeVec2(-2.5f, 0f),
-            new SpikeVec2(2.5f, 0f)
-        ],
-        BatterySpawnPoints:
-        [
-            new SpikeVec2(0f, 0f),
-            new SpikeVec2(0f, 2f),
-            new SpikeVec2(0f, -2f),
-            new SpikeVec2(2f, 0f),
-            new SpikeVec2(-2f, 0f),
-            new SpikeVec2(1.5f, 1.5f),
-            new SpikeVec2(-1.5f, 1.5f),
-            new SpikeVec2(1.5f, -1.5f)
-        ],
-        TrapCenters:
-        [
-            new SpikeVec2(0f, 1f),
-            new SpikeVec2(0f, -1f)
+            new SpikeVec2(-5.1f, 0f),
+            new SpikeVec2(5.1f, 0f)
         ]);
 }

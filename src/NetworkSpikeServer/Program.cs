@@ -2,7 +2,8 @@ using BatteryRushArena.NetworkSpikeServer;
 
 var config = SpikeServerConfig.CreateDefault();
 var roomRegistry = new RoomRegistry();
-var host = new SpikeServerHost(config, roomRegistry);
+var persistenceService = new MySqlPersistenceService(MySqlPersistenceService.BuildConnectionStringFromEnvironment());
+var host = new SpikeServerHost(config, roomRegistry, persistenceService);
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, args) =>
 {

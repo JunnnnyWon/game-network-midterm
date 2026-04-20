@@ -12,6 +12,7 @@ public sealed class ClientMessage
     public string ProtocolVersion { get; set; } = string.Empty;
     public string PlayerName { get; set; } = string.Empty;
     public string RoomCode { get; set; } = string.Empty;
+    public long ClientSentAtUnixMs { get; set; }
     public int Tick { get; set; }
     public float MoveX { get; set; }
     public float MoveY { get; set; }
@@ -19,6 +20,7 @@ public sealed class ClientMessage
     public float AimY { get; set; }
     public bool FirePressed { get; set; }
     public bool IsReady { get; set; }
+    public bool StartRequested { get; set; }
     public int BatteryId { get; set; }
     public int TrapId { get; set; }
 }
@@ -35,17 +37,28 @@ public sealed class ServerMessage
     public int Tick { get; set; }
     public string Detail { get; set; } = string.Empty;
     public string RoomState { get; set; } = string.Empty;
+    public string HostSessionId { get; set; } = string.Empty;
+    public string HostPlayerName { get; set; } = string.Empty;
     public int PlayerCount { get; set; }
     public int ReadyPlayers { get; set; }
     public float CountdownRemainingSeconds { get; set; }
     public string EndReason { get; set; } = string.Empty;
     public string PersistenceStatus { get; set; } = string.Empty;
+    public string PersistenceDetail { get; set; } = string.Empty;
     public string[] Members { get; set; } = [];
     public string[] ReadyMembers { get; set; } = [];
     public string[] RoomListings { get; set; } = [];
     public int[] ActiveBatteryIds { get; set; } = [];
+    public string[] BatteryPositions { get; set; } = [];
+    public string[] TrapPositions { get; set; } = [];
     public string[] Scoreboard { get; set; } = [];
+    public string[] LeaderboardRows { get; set; } = [];
     public float MatchTimeRemainingSeconds { get; set; }
+    public long ServerSentAtUnixMs { get; set; }
+    public int SnapshotSequence { get; set; }
+    public int LastProcessedClientTick { get; set; }
+    public float HeartbeatAgeSeconds { get; set; }
+    public long ClientSentAtUnixMs { get; set; }
     /// <summary>
     /// Remaining authoritative cooldown for the local player's slow shot.
     /// </summary>

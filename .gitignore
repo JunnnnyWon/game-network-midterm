@@ -139,7 +139,6 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
-.omx/
 # === Unity Project Outputs ===
 [Ll]ibrary/
 [Tt]emp/
@@ -152,3 +151,20 @@ $RECYCLE.BIN/
 # === IDE / Solution Outputs ===
 .vscode/
 *.slnx
+
+# === Repo-local Generated Folders ===
+/Assets/
+/Packages/
+/ProjectSettings/
+/Library/
+/Logs/
+/UserSettings/
+/Codex-Game-Studios/
+/outputs/
+/tmp/
+
+# === Unity User-specific Files ===
+/My project/Assets/UserChoices.choices
+/My project/Assets/UserChoices.choices.meta
+/My project/ProjectSettings/SceneTemplateSettings.json
+/My project/ProjectSettings/VirtualProjectsConfig.json

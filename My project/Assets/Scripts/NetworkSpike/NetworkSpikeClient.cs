@@ -35,6 +35,15 @@ namespace BatteryRushArena.NetworkSpike
         private Task _heartbeatTask;
         private DateTimeOffset _lastTransportSendUtc;
         private bool _sessionEstablished;
+        private string _connectedPlayerName = string.Empty;
+        private DateTimeOffset _lastMessageReceivedUtc = DateTimeOffset.MinValue;
+        private DateTimeOffset _lastHeartbeatAckUtc = DateTimeOffset.MinValue;
+        private long _lastHeartbeatRttMs = -1;
+        private int _lastSnapshotSequence;
+        private int _lastServerTick;
+        private int _lastAckedClientTick;
+        private int _messagesReceivedCount;
+        private string _lastMessageType = string.Empty;
 
         public NetworkSpikeClient(NetworkSpikeClientConfig config, Func<DateTimeOffset> clock = null)
         {
@@ -49,6 +58,24 @@ namespace BatteryRushArena.NetworkSpike
         public event Action<string> LogEmitted;
 
         public bool IsConnected => _sessionEstablished;
+
+        public string ConnectedPlayerName => _connectedPlayerName;
+
+        public DateTimeOffset LastMessageReceivedUtc => _lastMessageReceivedUtc;
+
+        public DateTimeOffset LastHeartbeatAckUtc => _lastHeartbeatAckUtc;
+
+        public long LastHeartbeatRttMs => _lastHeartbeatRttMs;
+
+        public int LastSnapshotSequence => _lastSnapshotSequence;
+
+        public int LastServerTick => _lastServerTick;
+
+        public int LastAckedClientTick => _lastAckedClientTick;
+
+        public int MessagesReceivedCount => _messagesReceivedCount;
+
+        public string LastMessageType => _lastMessageType;
 
         public async Task ConnectAndHandshakeAsync(string playerName, string protocolVersionOverride = "", CancellationToken cancellationToken = default)
         {
@@ -83,7 +110,8 @@ namespace BatteryRushArena.NetworkSpike
             {
                 Type = "hello",
                 ProtocolVersion = string.IsNullOrWhiteSpace(protocolVersionOverride) ? _config.ProtocolVersion : protocolVersionOverride,
-                PlayerName = playerName
+                PlayerName = playerName,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
             }, cancellationToken);
 
             var helloResponse = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(_stream, cancellationToken);
@@ -103,6 +131,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             _sessionEstablished = true;
+            _connectedPlayerName = string.IsNullOrWhiteSpace(helloResponse.Detail) ? playerName : helloResponse.Detail;
             _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
             _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(_readerCts.Token), _readerCts.Token);
@@ -110,13 +139,35 @@ namespace BatteryRushArena.NetworkSpike
         }
 
         public Task CreateRoomAsync(CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "create_room" }, cancellationToken);
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "create_room",
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
 
         public Task JoinRoomAsync(string roomCode, CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "join_room", RoomCode = roomCode }, cancellationToken);
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "join_room",
+                RoomCode = roomCode,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
 
         public Task SetReadyAsync(bool isReady, CancellationToken cancellationToken = default) =>
-            SendAsync(new SpikeClientMessage { Type = "ready_state", IsReady = isReady }, cancellationToken);
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "ready_state",
+                IsReady = isReady,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
+
+        public Task StartMatchAsync(CancellationToken cancellationToken = default) =>
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "start_match",
+                StartRequested = true,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
 
         public async Task MaybeSendHeartbeatAsync(CancellationToken cancellationToken = default)
         {
@@ -130,7 +181,11 @@ namespace BatteryRushArena.NetworkSpike
                 return;
             }
 
-            await SendAsync(new SpikeClientMessage { Type = "heartbeat" }, cancellationToken);
+            await SendAsync(new SpikeClientMessage
+            {
+                Type = "heartbeat",
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
             _lastTransportSendUtc = _clock();
             LogEmitted?.Invoke("Heartbeat sent.");
         }
@@ -164,13 +219,19 @@ namespace BatteryRushArena.NetworkSpike
                 MoveY = move.y,
                 AimX = aim.x,
                 AimY = aim.y,
-                FirePressed = firePressed
+                FirePressed = firePressed,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
             }, cancellationToken);
             _lastTransportSendUtc = _clock();
             LogEmitted?.Invoke($"Input frame sent tick={tick} move=({move.x:F2},{move.y:F2}) fire={firePressed}.");
         }
 
         public void Dispose()
+        {
+            ResetConnectionState();
+        }
+
+        public void Disconnect()
         {
             ResetConnectionState();
         }
@@ -211,6 +272,7 @@ namespace BatteryRushArena.NetworkSpike
                         break;
                     }
 
+                    TrackTelemetry(message);
                     DispatchToMainThread(() => MessageReceived?.Invoke(message));
                     DispatchToMainThread(() => LogEmitted?.Invoke($"Server[{message.Type}] {message.Detail} {message.Error}".Trim()));
                 }
@@ -219,7 +281,12 @@ namespace BatteryRushArena.NetworkSpike
             {
                 if (!(ex is OperationCanceledException))
                 {
-                    DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
+                    var isInterruptedIo = ex is IOException ioException &&
+                                          ioException.Message.IndexOf("interrupted", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!isInterruptedIo)
+                    {
+                        DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
+                    }
                 }
             }
             catch (Exception ex)
@@ -246,6 +313,38 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             _mainThreadContext.Post(_ => action(), null);
+        }
+
+        private void TrackTelemetry(SpikeServerMessage message)
+        {
+            var nowUtc = _clock();
+            _lastMessageReceivedUtc = nowUtc;
+            _lastMessageType = message.Type ?? string.Empty;
+            _messagesReceivedCount += 1;
+
+            if (message.Tick > 0)
+            {
+                _lastServerTick = message.Tick;
+            }
+
+            if (message.SnapshotSequence > 0)
+            {
+                _lastSnapshotSequence = message.SnapshotSequence;
+            }
+
+            if (message.LastProcessedClientTick > 0)
+            {
+                _lastAckedClientTick = message.LastProcessedClientTick;
+            }
+
+            if (string.Equals(message.Type, "heartbeat_ack", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastHeartbeatAckUtc = nowUtc;
+                if (message.ClientSentAtUnixMs > 0)
+                {
+                    _lastHeartbeatRttMs = Math.Max(0, nowUtc.ToUnixTimeMilliseconds() - message.ClientSentAtUnixMs);
+                }
+            }
         }
 
         private void ResetConnectionState()
@@ -288,6 +387,15 @@ namespace BatteryRushArena.NetworkSpike
             _heartbeatTask = null;
             _readerCts = null;
             _sessionEstablished = false;
+            _connectedPlayerName = string.Empty;
+            _lastMessageReceivedUtc = DateTimeOffset.MinValue;
+            _lastHeartbeatAckUtc = DateTimeOffset.MinValue;
+            _lastHeartbeatRttMs = -1;
+            _lastSnapshotSequence = 0;
+            _lastServerTick = 0;
+            _lastAckedClientTick = 0;
+            _messagesReceivedCount = 0;
+            _lastMessageType = string.Empty;
         }
     }
 }

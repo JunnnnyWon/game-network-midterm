@@ -4,13 +4,10 @@ namespace BatteryRushArena.NetworkSpike
 {
 
 /// <summary>
-/// Creates a lightweight runtime bootstrap object for the network-session spike scene.
+/// Creates a single runtime-owned NetworkSpikeApp per play world.
 /// </summary>
 public static class NetworkSpikeBootstrap
 {
-    /// <summary>
-    /// Creates the spike app before the first scene loads so the project is runnable without manual wiring.
-    /// </summary>
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Create()
     {

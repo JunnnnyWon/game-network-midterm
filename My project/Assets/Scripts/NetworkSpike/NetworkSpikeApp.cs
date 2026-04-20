@@ -15,7 +15,7 @@ namespace BatteryRushArena.NetworkSpike
     /// </summary>
     public sealed class NetworkSpikeApp : MonoBehaviour
     {
-        private const float ArenaWorldHalfExtent = 3.5f;
+        private const float ArenaWorldHalfExtent = 7.25f;
         private const float HudCardWidth = 168f;
         private const float HudCardHeight = 48f;
         private const float HudCardGap = 12f;
@@ -29,26 +29,18 @@ namespace BatteryRushArena.NetworkSpike
         private const float ToolkitCardHeight = 72f;
         private const string ToolkitOverlayResourcePath = "NetworkSpikeUI/NetworkSpikeOverlay";
         private const string ToolkitThemeResourcePath = "NetworkSpikeUI/UnityDefaultRuntimeTheme";
-        private static readonly Vector2[] BatterySpawnPreview =
-        {
-            new(0f, 0f),
-            new(0f, 2f),
-            new(0f, -2f),
-            new(2f, 0f),
-            new(-2f, 0f),
-            new(1.5f, 1.5f),
-            new(-1.5f, 1.5f),
-            new(1.5f, -1.5f)
-        };
-
         private static readonly Vector2[] TrapPreviewPositions =
         {
-            new(0f, 1f),
-            new(0f, -1f)
+            new(-4.6f, 2.8f),
+            new(-1.9f, -4.1f),
+            new(2.2f, 4.3f),
+            new(4.7f, -2.7f)
         };
 
         private readonly List<string> _logs = new();
         private readonly List<PlayerVisualState> _playerVisuals = new();
+        private readonly Dictionary<int, Vector2> _batteryPositionsById = new();
+        private readonly Dictionary<int, Vector2> _trapPositionsById = new();
         private readonly NetworkSpikeClientConfig _config = new();
         private readonly Dictionary<string, SpriteRenderer> _scenePlayerRenderers = new(StringComparer.Ordinal);
         private NetworkSpikeClient _client;
@@ -57,21 +49,28 @@ namespace BatteryRushArena.NetworkSpike
         private string _roomCode = string.Empty;
         private string _protocolVersionOverride = string.Empty;
         private int _tick;
+        private float _inputTickAccumulator;
+        private bool _fireBuffered;
         private bool _autoHeartbeat = true;
         private bool _readyRequested;
-        private bool _showDiagnosticsWindow;
-        private Rect _window = new(0f, 0f, 320f, 220f);
+        private bool _autoConnectAttempted;
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
         private int[] _activeBatteryIds = Array.Empty<int>();
         private GUIStyle _overlayTitleStyle;
         private GUIStyle _overlaySubStyle;
         private GUIStyle _pillLabelStyle;
+        private GUIStyle _fallbackPanelTitleStyle;
+        private GUIStyle _fallbackPanelBodyStyle;
+        private GUIStyle _fallbackPanelValueStyle;
+        private GUIStyle _fallbackButtonStyle;
+        private GUIStyle _fallbackFieldStyle;
+        private GUIStyle _fallbackFieldInputStyle;
+        private GUIStyle _fallbackSectionLabelStyle;
         private Transform _sceneRoot;
         private Transform _uiOverlayRoot;
         private SpriteRenderer _arenaSurfaceRenderer;
         private SpriteRenderer[] _batterySceneRenderers = Array.Empty<SpriteRenderer>();
         private SpriteRenderer[] _trapSceneRenderers = Array.Empty<SpriteRenderer>();
-        private UIDocument _uiDocument;
         private PanelSettings _panelSettings;
         private VisualTreeAsset _toolkitOverlayAsset;
         private StyleSheet _toolkitOverlayStyleSheet;
@@ -89,6 +88,9 @@ namespace BatteryRushArena.NetworkSpike
         private Label _toolkitScoreLabel;
         private Label _toolkitCooldownLabel;
         private Label _toolkitEffectLabel;
+        private VisualElement _toolkitNetworkPanel;
+        private Label _toolkitNetworkTelemetryLabel;
+        private Label _toolkitNetworkEventsLabel;
         private Label _toolkitResultsTitleLabel;
         private Label _toolkitResultsScoreLabel;
         private Label _toolkitResultsDetailLabel;
@@ -106,6 +108,7 @@ namespace BatteryRushArena.NetworkSpike
         private void Awake()
         {
             _lifetimeCts = new CancellationTokenSource();
+            EnsureDefaultPlayerName();
             _client = new NetworkSpikeClient(_config);
             _client.LogEmitted += AppendLog;
             _client.MessageReceived += OnMessageReceived;
@@ -115,14 +118,13 @@ namespace BatteryRushArena.NetworkSpike
             AppendLog("Network spike bootstrap ready.");
         }
 
+        private void Start()
+        {
+            BeginInitialConnectionAttempt();
+        }
+
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.backquoteKey.wasPressedThisFrame)
-            {
-                _showDiagnosticsWindow = !_showDiagnosticsWindow;
-                AppendLog(_showDiagnosticsWindow ? "Diagnostics window shown." : "Diagnostics window hidden.");
-            }
-
             if (_client == null || !_client.IsConnected)
             {
                 EnsureUiToolkitOverlay();
@@ -136,34 +138,54 @@ namespace BatteryRushArena.NetworkSpike
 
             if (IsRoomState("Active"))
             {
-                var move = ReadMoveVector();
-                if (move.sqrMagnitude > 0.0001f)
-                {
-                    _tick += 1;
-                    _ = _client.SendInputFrameAsync(_tick, move, ReadAimVector(), false, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-
                 if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
                 {
-                    _tick += 1;
-                    _ = _client.SendInputFrameAsync(_tick, ReadMoveVector(), ReadAimVector(), true, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                    _fireBuffered = true;
                 }
+
+                PumpInputFrames();
+            }
+            else
+            {
+                _inputTickAccumulator = 0f;
+                _fireBuffered = false;
             }
 
             UpdateCameraFollow();
             EnsureUiToolkitOverlay();
         }
 
+        private void PumpInputFrames()
+        {
+            var tickInterval = Mathf.Max(0.01f, _config.TickIntervalSeconds);
+            _inputTickAccumulator += Time.unscaledDeltaTime;
+
+            while (_inputTickAccumulator >= tickInterval)
+            {
+                _inputTickAccumulator -= tickInterval;
+
+                var move = ReadMoveVector();
+                var firePressed = _fireBuffered;
+                if (move.sqrMagnitude <= 0.0001f && !firePressed)
+                {
+                    continue;
+                }
+
+                _tick += 1;
+                _ = _client.SendInputFrameAsync(
+                    _tick,
+                    move,
+                    ReadAimVector(),
+                    firePressed,
+                    _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+
+                _fireBuffered = false;
+            }
+        }
+
         private void OnGUI()
         {
-            if (!_showDiagnosticsWindow)
-            {
-                return;
-            }
-
-            _window.x = Screen.width - _window.width - 16f;
-            _window.y = Screen.height - _window.height - 16f;
-            _window = GUI.Window(4815, _window, DrawWindow, "Network Session Spike");
+            DrawModernFallbackOverlay();
         }
 
         private void OnDestroy()
@@ -185,33 +207,175 @@ namespace BatteryRushArena.NetworkSpike
             }
         }
 
-        private void DrawWindow(int id)
+        private void DrawModernFallbackOverlay()
         {
-            GUILayout.Label("Diagnostics only — canonical flow is UI Toolkit.");
-            GUILayout.Space(6);
-            GUILayout.Label($"Host: {_config.Host}:{_config.Port}");
-            GUILayout.Label("Protocol Override (optional mismatch test)");
-            _protocolVersionOverride = GUILayout.TextField(_protocolVersionOverride);
-            _autoHeartbeat = GUILayout.Toggle(_autoHeartbeat, "Auto heartbeat when idle");
-            GUILayout.Label($"Connected: {(_client != null && _client.IsConnected)}");
-            GUILayout.Label($"Room: {FormatValue(_roomCode)}");
-            GUILayout.Label($"State: {_lastServerMessage.RoomState}");
-            GUILayout.Label($"Players: {_lastServerMessage.PlayerCount} / Ready {_lastServerMessage.ReadyPlayers}");
-            GUILayout.Label($"Timer: {_lastServerMessage.MatchTimeRemainingSeconds:F1}s · Countdown {_lastServerMessage.CountdownRemainingSeconds:F1}s");
-            GUILayout.Label($"Toolkit assets loaded: {_toolkitUsesAuthoredAssets}");
+            EnsureOverlayStyles();
 
-            GUILayout.Space(8);
-            GUILayout.Label("Logs:");
-            var startIndex = Mathf.Max(0, _logs.Count - 8);
-            for (var index = startIndex; index < _logs.Count; index++)
+            if (IsAnyRoomState("Ended", "Saving", "ResultsReady"))
             {
-                GUILayout.Label(_logs[index]);
+                DrawFallbackResultsPanel();
             }
-            GUI.DragWindow();
+            else if (!IsRoomState("Active"))
+            {
+                DrawFallbackPrematchPanel();
+                DrawFallbackNetworkPanel();
+            }
+            else
+            {
+                NetworkSpikeActiveHudRenderer.Draw(new Rect(0f, 0f, Screen.width, Screen.height), BuildActiveHudSnapshot());
+            }
         }
+
+        private void DrawFallbackPrematchPanel()
+        {
+            var panelRect = new Rect(24f, 24f, Mathf.Min(Screen.width * 0.42f, 560f), Mathf.Min(Screen.height * 0.80f, 620f));
+            DrawPanelChrome(panelRect, new Color(0.05f, 0.09f, 0.16f, 0.94f), new Color(0.34f, 0.82f, 0.96f, 1f));
+
+            GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 22f, panelRect.width - 48f, 36f), BuildPreMatchTitle(), _fallbackPanelTitleStyle);
+            GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 62f, panelRect.width - 48f, 28f), BuildPreMatchSummary(), _fallbackPanelBodyStyle);
+
+            if (IsRoomState("Countdown"))
+            {
+                GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 116f, panelRect.width - 48f, 32f), "SQUAD STATUS", _fallbackSectionLabelStyle);
+                GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 148f, panelRect.width - 48f, 108f), BuildLobbyMembersSummary(), _fallbackPanelBodyStyle);
+                GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 292f, panelRect.width - 48f, 52f), $"MATCH STARTS IN {Mathf.CeilToInt(Mathf.Max(0.1f, _lastServerMessage.CountdownRemainingSeconds))}", _fallbackPanelValueStyle);
+                GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 348f, panelRect.width - 48f, 52f), "Authoritative countdown from the host.", _fallbackPanelBodyStyle);
+                return;
+            }
+
+            GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 104f, 140f, 24f), "PLAYER", _fallbackSectionLabelStyle);
+            _playerName = DrawFallbackTextField(new Rect(panelRect.x + 24f, panelRect.y + 132f, panelRect.width - 48f, 42f), _playerName);
+
+            GUI.Label(new Rect(panelRect.x + 24f, panelRect.y + 188f, 180f, 24f), "ROOM CODE", _fallbackSectionLabelStyle);
+            _roomCode = DrawFallbackTextField(new Rect(panelRect.x + 24f, panelRect.y + 216f, panelRect.width - 48f, 42f), _roomCode);
+
+            var buttonWidth = (panelRect.width - 64f) / 3f;
+            if (DrawFallbackButton(new Rect(panelRect.x + 24f, panelRect.y + 278f, buttonWidth, 46f), "SYNC", false))
+            {
+                _ = ConnectFromUiAsync();
+            }
+
+            if (DrawFallbackButton(new Rect(panelRect.x + 32f + buttonWidth, panelRect.y + 278f, buttonWidth, 46f), "HOST MATCH", true))
+            {
+                _ = CreateRoomFromUiAsync();
+            }
+
+            if (DrawFallbackButton(new Rect(panelRect.x + 40f + (buttonWidth * 2f), panelRect.y + 278f, buttonWidth, 46f), "ENTER ROOM", false))
+            {
+                _ = JoinRoomFromUiAsync();
+            }
+
+            var footerButtonHeight = 46f;
+            var footerGap = 10f;
+            var readyButtonY = panelRect.yMax - footerButtonHeight - 20f;
+            var startButtonY = readyButtonY - footerButtonHeight - footerGap;
+            var hasStartButton = IsLocalPlayerHost() && IsRoomState("Lobby");
+
+            var membersTop = panelRect.y + 340f;
+            var membersHeight = 68f;
+            var roomsTop = membersTop + membersHeight + 12f;
+            var roomsBottom = hasStartButton ? startButtonY - 12f : readyButtonY - 12f;
+            var roomsHeight = Mathf.Max(60f, roomsBottom - roomsTop);
+
+            GUI.Label(new Rect(panelRect.x + 24f, membersTop, panelRect.width - 48f, membersHeight), BuildLobbyMembersSummary(), _fallbackPanelBodyStyle);
+            GUI.Label(new Rect(panelRect.x + 24f, roomsTop, panelRect.width - 48f, roomsHeight), BuildRoomListingsSummary(), _fallbackPanelBodyStyle);
+
+            var readyLabel = _readyRequested ? "Unset Ready" : "Set Ready";
+            if (DrawFallbackButton(new Rect(panelRect.x + 24f, readyButtonY, panelRect.width - 48f, footerButtonHeight), readyLabel, true))
+            {
+                _readyRequested = !_readyRequested;
+                if (_client != null)
+                {
+                    _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
+                }
+            }
+
+            if (hasStartButton)
+            {
+                if (DrawFallbackButton(new Rect(panelRect.x + 24f, startButtonY, panelRect.width - 48f, footerButtonHeight), "START MATCH", false))
+                {
+                    _ = StartMatchFromUiAsync();
+                }
+            }
+        }
+
+        private void DrawFallbackHudStrips()
+        {
+            var topCardWidth = Mathf.Min(Screen.width * 0.34f, 430f);
+            var scoreCardWidth = Mathf.Min(Screen.width * 0.34f, 480f);
+            var topLeft = new Rect(24f, 24f, topCardWidth, 122f);
+            var topRight = new Rect(Screen.width - scoreCardWidth - 24f, 24f, scoreCardWidth, 122f);
+            var bottomLeft = new Rect(24f, Screen.height - 132f, Mathf.Min(Screen.width * 0.34f, 440f), 102f);
+            var bottomRight = new Rect(Screen.width - Mathf.Min(Screen.width * 0.28f, 320f) - 24f, Screen.height - 132f, Mathf.Min(Screen.width * 0.28f, 320f), 102f);
+
+            DrawHudStrip(topLeft, "MATCH", BuildNetworkAwareMatchLabel());
+            DrawHudStrip(topRight, "SCORE", BuildResultsScoreLine());
+            DrawHudStrip(bottomLeft, "STATUS", GetLocalPlayer() is { } local ? BuildEffectLabel(local) : "Awaiting feed");
+            DrawHudStrip(bottomRight, "COOLDOWN", BuildCooldownCardLabel());
+        }
+
+        private void DrawFallbackResultsPanel()
+        {
+            var width = Mathf.Min(Screen.width * 0.58f, 820f);
+            var height = Mathf.Min(Screen.height * 0.62f, 560f);
+            var panelRect = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
+            DrawFilledRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.48f));
+            DrawPanelChrome(panelRect, new Color(0.05f, 0.09f, 0.16f, 0.96f), new Color(0.34f, 0.82f, 0.96f, 1f));
+
+            GUI.Label(new Rect(panelRect.x + 28f, panelRect.y + 24f, panelRect.width - 56f, 36f), BuildWinnerSummary(), _fallbackPanelTitleStyle);
+            GUI.Label(new Rect(panelRect.x + 28f, panelRect.y + 70f, panelRect.width - 56f, 24f), "FINAL SCORE", _fallbackSectionLabelStyle);
+            GUI.Label(new Rect(panelRect.x + 28f, panelRect.y + 98f, panelRect.width - 56f, 74f), BuildResultsScoreLine(), _fallbackPanelValueStyle);
+
+            var detailTop = panelRect.y + 188f;
+            var buttonHeight = 46f;
+            var detailHeight = panelRect.height - (detailTop - panelRect.y) - buttonHeight - 34f;
+            GUI.Label(
+                new Rect(panelRect.x + 28f, detailTop, panelRect.width - 56f, detailHeight),
+                $"State: {FormatValue(_lastServerMessage.RoomState)}\nReason: {FormatValue(_lastServerMessage.EndReason)}\nPersist: {FormatValue(_lastServerMessage.PersistenceStatus)}\n{FormatValue(_lastServerMessage.PersistenceDetail)}\n{BuildLeaderboardSummary()}",
+                _fallbackPanelBodyStyle);
+
+            if (DrawFallbackButton(new Rect(panelRect.x + 28f, panelRect.yMax - buttonHeight - 20f, panelRect.width - 56f, buttonHeight), "RETURN TO LOBBY", true))
+            {
+                _ = ReturnToLobbyFromUiAsync();
+            }
+        }
+
+        private void DrawFallbackNetworkPanel()
+        {
+            var width = Mathf.Min(Screen.width * 0.34f, 480f);
+            var height = Mathf.Min(Screen.height * 0.30f, 250f);
+            var panelRect = IsRoomState("Active")
+                ? new Rect(Screen.width - width - 24f, 158f, width, height)
+                : new Rect(Screen.width - width - 24f, Screen.height - height - 24f, width, height);
+            DrawPanelChrome(panelRect, new Color(0.04f, 0.07f, 0.12f, 0.82f), new Color(0.30f, 0.56f, 0.78f, 0.9f));
+            GUI.Label(new Rect(panelRect.x + 18f, panelRect.y + 16f, panelRect.width - 36f, 24f), "NETWORK TELEMETRY", _fallbackSectionLabelStyle);
+            GUI.Label(new Rect(panelRect.x + 18f, panelRect.y + 46f, panelRect.width - 36f, 96f), BuildNetworkTelemetrySummary(), _fallbackPanelBodyStyle);
+            GUI.Label(new Rect(panelRect.x + 18f, panelRect.y + 150f, panelRect.width - 36f, panelRect.height - 166f), BuildRecentEventsSummary(), _fallbackPanelBodyStyle);
+        }
+
+        private NetworkSpikeActiveHudSnapshot BuildActiveHudSnapshot()
+        {
+            var localPlayer = GetLocalPlayer();
+            return new NetworkSpikeActiveHudSnapshot(
+                BuildNetworkAwareMatchLabel(),
+                BuildResultsScoreLine(),
+                localPlayer is null ? "Awaiting feed" : BuildEffectLabel(localPlayer),
+                BuildCooldownCardLabel(),
+                BuildNetworkTelemetrySummary(),
+                BuildRecentEventsSummary());
+        }
+
+        private string BuildNetworkAwareMatchLabel() =>
+            $"Room {FormatValue(_roomCode)}\nState {FormatValue(_lastServerMessage.RoomState)}\nTime {Mathf.Max(0f, _lastServerMessage.MatchTimeRemainingSeconds):0.0}s";
 
         private void OnMessageReceived(SpikeServerMessage message)
         {
+            if (string.Equals(message.Type, "hello_accepted", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(message.Detail))
+            {
+                _playerName = message.Detail;
+            }
+
             _lastServerMessage = MergeServerMessage(_lastServerMessage, message);
             if (!string.IsNullOrWhiteSpace(message.RoomCode))
             {
@@ -236,6 +400,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             var authoritativeRoomSnapshot = string.Equals(incoming.Type, "room_snapshot", StringComparison.OrdinalIgnoreCase);
+            var carriesRoomListings = authoritativeRoomSnapshot || MessageCarriesRoomListings(incoming.Type);
 
             return new SpikeServerMessage
             {
@@ -246,16 +411,22 @@ namespace BatteryRushArena.NetworkSpike
                 Tick = incoming.Tick != 0 ? incoming.Tick : current.Tick,
                 Detail = string.IsNullOrWhiteSpace(incoming.Detail) ? current.Detail : incoming.Detail,
                 RoomState = string.IsNullOrWhiteSpace(incoming.RoomState) ? current.RoomState : incoming.RoomState,
+                HostSessionId = string.IsNullOrWhiteSpace(incoming.HostSessionId) ? current.HostSessionId : incoming.HostSessionId,
+                HostPlayerName = string.IsNullOrWhiteSpace(incoming.HostPlayerName) ? current.HostPlayerName : incoming.HostPlayerName,
                 PlayerCount = authoritativeRoomSnapshot ? incoming.PlayerCount : (incoming.PlayerCount != 0 ? incoming.PlayerCount : current.PlayerCount),
                 ReadyPlayers = authoritativeRoomSnapshot ? incoming.ReadyPlayers : (incoming.ReadyPlayers != 0 ? incoming.ReadyPlayers : current.ReadyPlayers),
                 CountdownRemainingSeconds = authoritativeRoomSnapshot ? incoming.CountdownRemainingSeconds : (incoming.CountdownRemainingSeconds > 0f ? incoming.CountdownRemainingSeconds : current.CountdownRemainingSeconds),
                 EndReason = string.IsNullOrWhiteSpace(incoming.EndReason) ? current.EndReason : incoming.EndReason,
                 PersistenceStatus = string.IsNullOrWhiteSpace(incoming.PersistenceStatus) ? current.PersistenceStatus : incoming.PersistenceStatus,
+                PersistenceDetail = string.IsNullOrWhiteSpace(incoming.PersistenceDetail) ? current.PersistenceDetail : incoming.PersistenceDetail,
                 Members = authoritativeRoomSnapshot ? (incoming.Members ?? Array.Empty<string>()) : (incoming.Members != null && incoming.Members.Length > 0 ? incoming.Members : current.Members),
                 ReadyMembers = authoritativeRoomSnapshot ? (incoming.ReadyMembers ?? Array.Empty<string>()) : (incoming.ReadyMembers != null && incoming.ReadyMembers.Length > 0 ? incoming.ReadyMembers : current.ReadyMembers),
-                RoomListings = authoritativeRoomSnapshot ? (incoming.RoomListings ?? Array.Empty<string>()) : (incoming.RoomListings != null && incoming.RoomListings.Length > 0 ? incoming.RoomListings : current.RoomListings),
+                RoomListings = carriesRoomListings ? (incoming.RoomListings ?? Array.Empty<string>()) : current.RoomListings,
                 ActiveBatteryIds = authoritativeRoomSnapshot ? (incoming.ActiveBatteryIds ?? Array.Empty<int>()) : (incoming.ActiveBatteryIds != null && incoming.ActiveBatteryIds.Length > 0 ? incoming.ActiveBatteryIds : current.ActiveBatteryIds),
+                BatteryPositions = authoritativeRoomSnapshot ? (incoming.BatteryPositions ?? Array.Empty<string>()) : (incoming.BatteryPositions != null && incoming.BatteryPositions.Length > 0 ? incoming.BatteryPositions : current.BatteryPositions),
+                TrapPositions = authoritativeRoomSnapshot ? (incoming.TrapPositions ?? Array.Empty<string>()) : (incoming.TrapPositions != null && incoming.TrapPositions.Length > 0 ? incoming.TrapPositions : current.TrapPositions),
                 Scoreboard = authoritativeRoomSnapshot ? (incoming.Scoreboard ?? Array.Empty<string>()) : (incoming.Scoreboard != null && incoming.Scoreboard.Length > 0 ? incoming.Scoreboard : current.Scoreboard),
+                LeaderboardRows = authoritativeRoomSnapshot ? (incoming.LeaderboardRows ?? Array.Empty<string>()) : (incoming.LeaderboardRows != null && incoming.LeaderboardRows.Length > 0 ? incoming.LeaderboardRows : current.LeaderboardRows),
                 MatchTimeRemainingSeconds = authoritativeRoomSnapshot ? incoming.MatchTimeRemainingSeconds : (incoming.MatchTimeRemainingSeconds > 0f ? incoming.MatchTimeRemainingSeconds : current.MatchTimeRemainingSeconds),
                 SlowShotCooldownRemainingSeconds = authoritativeRoomSnapshot ? incoming.SlowShotCooldownRemainingSeconds : (incoming.SlowShotCooldownRemainingSeconds > 0f ? incoming.SlowShotCooldownRemainingSeconds : current.SlowShotCooldownRemainingSeconds),
                 EffectStates = authoritativeRoomSnapshot ? (incoming.EffectStates ?? Array.Empty<string>()) : (incoming.EffectStates != null && incoming.EffectStates.Length > 0 ? incoming.EffectStates : current.EffectStates),
@@ -344,7 +515,10 @@ namespace BatteryRushArena.NetworkSpike
 
         private void DrawTrapPreview(Rect rect)
         {
-            foreach (var trapPosition in TrapPreviewPositions)
+            var trapPositions = _trapPositionsById.Count > 0
+                ? _trapPositionsById.OrderBy(pair => pair.Key).Select(pair => pair.Value)
+                : TrapPreviewPositions;
+            foreach (var trapPosition in trapPositions)
             {
                 var markerRect = BuildMarkerRect(rect, trapPosition, 22f);
                 DrawFilledRect(markerRect, new Color(0.78f, 0.21f, 0.28f, 0.45f));
@@ -357,13 +531,12 @@ namespace BatteryRushArena.NetworkSpike
         {
             foreach (var batteryId in _activeBatteryIds)
             {
-                var batteryIndex = batteryId - 1;
-                if (batteryIndex < 0 || batteryIndex >= BatterySpawnPreview.Length)
+                if (!_batteryPositionsById.TryGetValue(batteryId, out var batteryPosition))
                 {
                     continue;
                 }
 
-                var markerRect = BuildMarkerRect(rect, BatterySpawnPreview[batteryIndex], 16f);
+                var markerRect = BuildMarkerRect(rect, batteryPosition, 16f);
                 DrawFilledRect(markerRect, new Color(1f, 0.83f, 0.18f, 0.95f));
                 DrawOutline(markerRect, new Color(1f, 0.95f, 0.62f, 1f), 2f);
             }
@@ -374,7 +547,7 @@ namespace BatteryRushArena.NetworkSpike
             for (var index = 0; index < _playerVisuals.Count; index++)
             {
                 var player = _playerVisuals[index];
-                var isLocalPlayer = string.Equals(player.Name, _playerName, StringComparison.Ordinal);
+                var isLocalPlayer = string.Equals(player.Name, GetEffectiveLocalPlayerName(), StringComparison.Ordinal);
                 var bodyColor = isLocalPlayer ? new Color(0.33f, 0.9f, 0.53f, 1f) : new Color(0.33f, 0.7f, 1f, 1f);
                 var bodyRect = BuildMarkerRect(rect, player.Position, 18f);
 
@@ -524,6 +697,16 @@ namespace BatteryRushArena.NetworkSpike
         private void RefreshPresentationSnapshot(SpikeServerMessage message)
         {
             _activeBatteryIds = message.ActiveBatteryIds != null ? (int[])message.ActiveBatteryIds.Clone() : Array.Empty<int>();
+            _batteryPositionsById.Clear();
+            foreach (var pair in ParseBatteryPositions(message.BatteryPositions))
+            {
+                _batteryPositionsById[pair.Key] = pair.Value;
+            }
+            _trapPositionsById.Clear();
+            foreach (var pair in ParseTrapPositions(message.TrapPositions))
+            {
+                _trapPositionsById[pair.Key] = pair.Value;
+            }
             var scoresByName = ParseScores(message.Scoreboard);
             var positionsByName = ParsePositions(message.PlayerPositions);
             var effectsByName = ParseEffects(message.EffectStates);
@@ -537,6 +720,10 @@ namespace BatteryRushArena.NetworkSpike
         public void ApplyAuthoritativeSnapshotForTesting(SpikeServerMessage message)
         {
             _lastServerMessage = message;
+            if (!string.IsNullOrWhiteSpace(message.RoomCode))
+            {
+                _roomCode = message.RoomCode;
+            }
             RefreshPresentationSnapshot(message);
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
@@ -567,13 +754,15 @@ namespace BatteryRushArena.NetworkSpike
 
         public bool ToolkitUsesAuthoredAssetsForTesting => _toolkitUsesAuthoredAssets;
 
-        public bool UsesDiagnosticsOnlyImguiForTesting => !_showDiagnosticsWindow;
-
         public string ToolkitPreMatchTitleForTesting => _toolkitPreMatchTitleLabel?.text ?? string.Empty;
 
         public string ToolkitPreMatchMembersForTesting => _toolkitPreMatchMembersLabel?.text ?? string.Empty;
 
         public string ToolkitPreMatchRoomsForTesting => _toolkitPreMatchRoomsLabel?.text ?? string.Empty;
+
+        public string ToolkitNetworkTelemetryForTesting => _toolkitNetworkTelemetryLabel?.text ?? BuildNetworkTelemetrySummary();
+
+        public string ToolkitNetworkEventsForTesting => _toolkitNetworkEventsLabel?.text ?? BuildRecentEventsSummary();
 
         private string BuildWinnerSummary()
         {
@@ -629,7 +818,17 @@ namespace BatteryRushArena.NetworkSpike
                 return "Score: awaiting data";
             }
 
-            return "Score: " + string.Join(" · ", _playerVisuals.Select(player => $"{player.Name} {player.Score}"));
+            return string.Join("\n", _playerVisuals.Select(player => $"{AbbreviateValue(player.Name, 14)}  {player.Score}"));
+        }
+
+        private string BuildLeaderboardSummary()
+        {
+            if (_lastServerMessage.LeaderboardRows == null || _lastServerMessage.LeaderboardRows.Length == 0)
+            {
+                return "Leaderboard: waiting for database results";
+            }
+
+            return "Leaderboard:\n- " + string.Join("\n- ", _lastServerMessage.LeaderboardRows);
         }
 
         private static string BuildEffectLabel(PlayerVisualState player)
@@ -648,7 +847,17 @@ namespace BatteryRushArena.NetworkSpike
         }
 
         private PlayerVisualState GetLocalPlayer() =>
-            _playerVisuals.FirstOrDefault(player => string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+            _playerVisuals.FirstOrDefault(player => string.Equals(player.Name, GetEffectiveLocalPlayerName(), StringComparison.Ordinal));
+
+        private string GetEffectiveLocalPlayerName()
+        {
+            if (_client != null && _client.IsConnected && !string.IsNullOrWhiteSpace(_client.ConnectedPlayerName))
+            {
+                return _client.ConnectedPlayerName;
+            }
+
+            return _playerName;
+        }
 
         private Color GetCooldownAccentColor(float alpha = 1f) =>
             _lastServerMessage.SlowShotReady ? new Color(0.24f, 0.62f, 0.34f, alpha) : new Color(0.8f, 0.39f, 0.14f, alpha);
@@ -716,6 +925,38 @@ namespace BatteryRushArena.NetworkSpike
             return positionsByName;
         }
 
+        private static Dictionary<int, Vector2> ParseBatteryPositions(string[] positionEntries)
+        {
+            return ParseIndexedPositions(positionEntries);
+        }
+
+        private static Dictionary<int, Vector2> ParseTrapPositions(string[] positionEntries)
+        {
+            return ParseIndexedPositions(positionEntries);
+        }
+
+        private static Dictionary<int, Vector2> ParseIndexedPositions(string[] positionEntries)
+        {
+            var positionsById = new Dictionary<int, Vector2>();
+            foreach (var entry in positionEntries ?? Array.Empty<string>())
+            {
+                var parts = entry.Split(':');
+                if (parts.Length < 3)
+                {
+                    continue;
+                }
+
+                if (int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) &&
+                    float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) &&
+                    float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+                {
+                    positionsById[id] = new Vector2(x, y);
+                }
+            }
+
+            return positionsById;
+        }
+
         private static Dictionary<string, EffectVisualState> ParseEffects(string[] effectEntries)
         {
             var effectsByName = new Dictionary<string, EffectVisualState>(StringComparer.Ordinal);
@@ -773,8 +1014,13 @@ namespace BatteryRushArena.NetworkSpike
                 return;
             }
 
-            _sceneRoot = new GameObject("NetworkSpikeScenePresentation").transform;
-            _arenaSurfaceRenderer = CreateSceneSprite(
+            _sceneRoot = GameObject.Find("NetworkSpikeScenePresentation")?.transform;
+            if (_sceneRoot == null)
+            {
+                _sceneRoot = new GameObject("NetworkSpikeScenePresentation").transform;
+            }
+
+            _arenaSurfaceRenderer = EnsureSceneSprite(
                 "ArenaSurface",
                 _sceneRoot,
                 Vector2.zero,
@@ -782,18 +1028,18 @@ namespace BatteryRushArena.NetworkSpike
                 new Color(0.06f, 0.08f, 0.12f, 0.92f),
                 -10);
 
-            _batterySceneRenderers = BatterySpawnPreview
-                .Select((position, index) => CreateSceneSprite(
+            _batterySceneRenderers = Enumerable.Range(0, 8)
+                .Select(index => EnsureSceneSprite(
                     $"Battery-{index + 1}",
                     _sceneRoot,
-                    position,
+                    Vector2.zero,
                     new Vector3(0.35f, 0.35f, 1f),
                     new Color(1f, 0.83f, 0.18f, 1f),
                     20))
                 .ToArray();
 
             _trapSceneRenderers = TrapPreviewPositions
-                .Select((position, index) => CreateSceneSprite(
+                .Select((position, index) => EnsureSceneSprite(
                     $"Trap-{index + 1}",
                     _sceneRoot,
                     position,
@@ -821,17 +1067,31 @@ namespace BatteryRushArena.NetworkSpike
                     continue;
                 }
 
-                _batterySceneRenderers[index].gameObject.SetActive(activeIds.Contains(index + 1));
+                var batteryId = index + 1;
+                var hasPosition = _batteryPositionsById.TryGetValue(batteryId, out var batteryPosition);
+                var isActive = activeIds.Contains(batteryId) && hasPosition;
+                _batterySceneRenderers[index].gameObject.SetActive(isActive);
+                if (isActive)
+                {
+                    _batterySceneRenderers[index].transform.position = new Vector3(batteryPosition.x, batteryPosition.y, 0f);
+                }
             }
         }
 
         private void SyncTrapSceneActors()
         {
-            foreach (var renderer in _trapSceneRenderers)
+            for (var index = 0; index < _trapSceneRenderers.Length; index++)
             {
+                var renderer = _trapSceneRenderers[index];
                 if (renderer != null)
                 {
-                    renderer.gameObject.SetActive(true);
+                    var trapId = index + 1;
+                    var isActive = _trapPositionsById.TryGetValue(trapId, out var trapPosition);
+                    renderer.gameObject.SetActive(isActive);
+                    if (isActive)
+                    {
+                        renderer.transform.position = new Vector3(trapPosition.x, trapPosition.y, 0f);
+                    }
                 }
             }
         }
@@ -851,7 +1111,7 @@ namespace BatteryRushArena.NetworkSpike
             {
                 if (!_scenePlayerRenderers.TryGetValue(player.Name, out var renderer) || renderer == null)
                 {
-                    renderer = CreateSceneSprite(
+                    renderer = EnsureSceneSprite(
                         $"{player.Name}-Actor",
                         _sceneRoot,
                         player.Position,
@@ -876,7 +1136,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             camera.orthographic = true;
-            camera.orthographicSize = 4.4f;
+            camera.orthographicSize = ArenaWorldHalfExtent + 0.7f;
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.backgroundColor = new Color(0.03f, 0.05f, 0.08f, 1f);
         }
@@ -896,43 +1156,44 @@ namespace BatteryRushArena.NetworkSpike
 
         private void EnsureUiToolkitOverlay()
         {
-            if (_uiRoot != null)
+            if (_uiOverlayRoot != null)
             {
-                return;
+                Destroy(_uiOverlayRoot.gameObject);
+                _uiOverlayRoot = null;
             }
 
-            if (_uiOverlayRoot == null)
+            if (_panelSettings != null)
             {
-                _uiOverlayRoot = new GameObject("NetworkSpikeUiOverlay").transform;
-                _uiOverlayRoot.SetParent(transform, false);
+                Destroy(_panelSettings);
+                _panelSettings = null;
             }
 
-            if (_panelSettings == null)
-            {
-                _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
-                _panelSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-                _panelSettings.referenceResolution = new Vector2Int(1920, 1080);
-                _panelSettings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
-                _panelSettings.match = 0.5f;
-                _panelSettings.sortingOrder = 100;
-                _panelSettings.themeStyleSheet = LoadToolkitThemeStyleSheet();
-            }
-
-            if (_uiDocument == null)
-            {
-                _uiDocument = _uiOverlayRoot.gameObject.AddComponent<UIDocument>();
-                _uiDocument.panelSettings = _panelSettings;
-                _uiDocument.sortingOrder = 100;
-            }
-
-            _uiRoot = _uiDocument.rootVisualElement;
-            if (_uiRoot == null)
-            {
-                return;
-            }
-
-            BuildUiToolkitOverlay();
-            RefreshUiToolkitOverlay();
+            _uiRoot = null;
+            _preMatchOverlay = null;
+            _activeHudOverlay = null;
+            _resultsOverlay = null;
+            _toolkitPreMatchTitleLabel = null;
+            _toolkitPreMatchSummaryLabel = null;
+            _toolkitPlayerNameField = null;
+            _toolkitRoomCodeField = null;
+            _toolkitConnectButton = null;
+            _toolkitCreateButton = null;
+            _toolkitJoinButton = null;
+            _toolkitPreMatchMembersLabel = null;
+            _toolkitPreMatchRoomsLabel = null;
+            _toolkitReadyButton = null;
+            _toolkitCountdownLabel = null;
+            _toolkitTopLabel = null;
+            _toolkitScoreLabel = null;
+            _toolkitCooldownLabel = null;
+            _toolkitEffectLabel = null;
+            _toolkitNetworkPanel = null;
+            _toolkitNetworkTelemetryLabel = null;
+            _toolkitNetworkEventsLabel = null;
+            _toolkitResultsTitleLabel = null;
+            _toolkitResultsScoreLabel = null;
+            _toolkitResultsDetailLabel = null;
+            _toolkitUsesAuthoredAssets = false;
         }
 
         private void BuildUiToolkitOverlay()
@@ -980,6 +1241,9 @@ namespace BatteryRushArena.NetworkSpike
             _toolkitScoreLabel = _uiRoot.Q<Label>("toolkit-score-label");
             _toolkitCooldownLabel = _uiRoot.Q<Label>("toolkit-cooldown-label");
             _toolkitEffectLabel = _uiRoot.Q<Label>("toolkit-effect-label");
+            _toolkitNetworkPanel = _uiRoot.Q<VisualElement>("network-panel");
+            _toolkitNetworkTelemetryLabel = _uiRoot.Q<Label>("network-telemetry-label");
+            _toolkitNetworkEventsLabel = _uiRoot.Q<Label>("network-events-label");
             _toolkitResultsTitleLabel = _uiRoot.Q<Label>("toolkit-results-title-label");
             _toolkitResultsScoreLabel = _uiRoot.Q<Label>("toolkit-results-score-label");
             _toolkitResultsDetailLabel = _uiRoot.Q<Label>("toolkit-results-detail-label");
@@ -1034,199 +1298,7 @@ namespace BatteryRushArena.NetworkSpike
 
         private void BuildProceduralUiToolkitOverlay()
         {
-            _uiRoot.Clear();
-            _uiRoot.style.flexGrow = 1f;
-            _uiRoot.pickingMode = PickingMode.Position;
-
-            _preMatchOverlay = new VisualElement();
-            _preMatchOverlay.style.position = Position.Absolute;
-            _preMatchOverlay.style.left = ToolkitMargin;
-            _preMatchOverlay.style.top = ToolkitMargin;
-            _preMatchOverlay.style.width = new Length(32f, LengthUnit.Percent);
-            _preMatchOverlay.style.minWidth = 280f;
-            _preMatchOverlay.style.maxWidth = 420f;
-            _preMatchOverlay.style.paddingLeft = 16f;
-            _preMatchOverlay.style.paddingRight = 16f;
-            _preMatchOverlay.style.paddingTop = 16f;
-            _preMatchOverlay.style.paddingBottom = 16f;
-            _preMatchOverlay.style.backgroundColor = new Color(0.08f, 0.11f, 0.17f, 0.92f);
-            _preMatchOverlay.style.borderLeftWidth = 2f;
-            _preMatchOverlay.style.borderTopWidth = 2f;
-            _preMatchOverlay.style.borderRightWidth = 2f;
-            _preMatchOverlay.style.borderBottomWidth = 2f;
-            _preMatchOverlay.style.borderLeftColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            _preMatchOverlay.style.borderTopColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            _preMatchOverlay.style.borderRightColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            _preMatchOverlay.style.borderBottomColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            _preMatchOverlay.pickingMode = PickingMode.Position;
-
-            _toolkitPreMatchTitleLabel = new Label();
-            _toolkitPreMatchTitleLabel.style.fontSize = 20f;
-            _toolkitPreMatchTitleLabel.style.color = Color.white;
-            _toolkitPreMatchTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-
-            _toolkitPreMatchSummaryLabel = new Label();
-            _toolkitPreMatchSummaryLabel.style.marginTop = 6f;
-            _toolkitPreMatchSummaryLabel.style.color = new Color(0.88f, 0.92f, 1f, 1f);
-
-            _toolkitPlayerNameField = new TextField("Player");
-            _toolkitPlayerNameField.RegisterValueChangedCallback(evt =>
-            {
-                if (!_suppressToolkitFieldCallbacks)
-                {
-                    _playerName = evt.newValue;
-                }
-            });
-
-            _toolkitRoomCodeField = new TextField("Room Code");
-            _toolkitRoomCodeField.RegisterValueChangedCallback(evt =>
-            {
-                if (!_suppressToolkitFieldCallbacks)
-                {
-                    _roomCode = evt.newValue;
-                }
-            });
-
-            var actionRow = new VisualElement();
-            actionRow.style.flexDirection = FlexDirection.Row;
-            actionRow.style.flexWrap = Wrap.Wrap;
-            actionRow.style.marginTop = 10f;
-
-            _toolkitConnectButton = new Button(() => _ = ConnectFromUiAsync())
-            { text = "Connect" };
-            _toolkitCreateButton = new Button(() => _ = CreateRoomFromUiAsync())
-            { text = "Create" };
-            _toolkitJoinButton = new Button(() => _ = JoinRoomFromUiAsync())
-            { text = "Join" };
-
-            _toolkitConnectButton.style.minWidth = 96f;
-            _toolkitConnectButton.style.flexGrow = 1f;
-            _toolkitCreateButton.style.minWidth = 96f;
-            _toolkitCreateButton.style.flexGrow = 1f;
-            _toolkitJoinButton.style.minWidth = 96f;
-            _toolkitJoinButton.style.flexGrow = 1f;
-
-            actionRow.Add(_toolkitConnectButton);
-            actionRow.Add(_toolkitCreateButton);
-            actionRow.Add(_toolkitJoinButton);
-
-            _toolkitPreMatchMembersLabel = new Label();
-            _toolkitPreMatchMembersLabel.style.marginTop = 10f;
-            _toolkitPreMatchMembersLabel.style.whiteSpace = WhiteSpace.Normal;
-            _toolkitPreMatchMembersLabel.style.color = new Color(0.95f, 0.97f, 1f, 1f);
-
-            _toolkitPreMatchRoomsLabel = new Label();
-            _toolkitPreMatchRoomsLabel.style.marginTop = 10f;
-            _toolkitPreMatchRoomsLabel.style.whiteSpace = WhiteSpace.Normal;
-            _toolkitPreMatchRoomsLabel.style.color = new Color(0.86f, 0.91f, 0.98f, 1f);
-
-            _toolkitReadyButton = new Button(() =>
-            {
-                _readyRequested = !_readyRequested;
-                if (_client != null)
-                {
-                    _ = _client.SetReadyAsync(_readyRequested, _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None);
-                }
-            })
-            { text = "Set Ready" };
-            _toolkitReadyButton.style.marginTop = 10f;
-
-            _toolkitCountdownLabel = new Label();
-            _toolkitCountdownLabel.style.marginTop = 10f;
-            _toolkitCountdownLabel.style.fontSize = 18f;
-            _toolkitCountdownLabel.style.color = new Color(1f, 0.93f, 0.5f, 1f);
-            _toolkitCountdownLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-
-            _preMatchOverlay.Add(_toolkitPreMatchTitleLabel);
-            _preMatchOverlay.Add(_toolkitPreMatchSummaryLabel);
-            _preMatchOverlay.Add(_toolkitPlayerNameField);
-            _preMatchOverlay.Add(_toolkitRoomCodeField);
-            _preMatchOverlay.Add(actionRow);
-            _preMatchOverlay.Add(_toolkitPreMatchMembersLabel);
-            _preMatchOverlay.Add(_toolkitPreMatchRoomsLabel);
-            _preMatchOverlay.Add(_toolkitReadyButton);
-            _preMatchOverlay.Add(_toolkitCountdownLabel);
-            _uiRoot.Add(_preMatchOverlay);
-
-            _activeHudOverlay = new VisualElement();
-            _activeHudOverlay.style.position = Position.Absolute;
-            _activeHudOverlay.style.left = ToolkitMargin;
-            _activeHudOverlay.style.top = ToolkitMargin;
-            _activeHudOverlay.style.right = ToolkitMargin;
-            _activeHudOverlay.style.bottom = ToolkitMargin;
-            _activeHudOverlay.pickingMode = PickingMode.Ignore;
-
-            var statusCard = CreateToolkitCard(ToolkitMargin, ToolkitMargin, ToolkitCardWidth, ToolkitCardHeight, "MATCH");
-            _toolkitTopLabel = CreateToolkitValueLabel();
-            statusCard.Add(_toolkitTopLabel);
-
-            var scoreCard = CreateToolkitCard(ToolkitMargin, ToolkitMargin + ToolkitCardHeight + 8f, ToolkitCardWidth, ToolkitCardHeight, "SCORE");
-            _toolkitScoreLabel = CreateToolkitValueLabel();
-            scoreCard.Add(_toolkitScoreLabel);
-
-            var cooldownCard = CreateToolkitCard(ToolkitMargin + ToolkitCardWidth + 8f, ToolkitMargin, ToolkitCardWidth, ToolkitCardHeight, "COOLDOWN");
-            _toolkitCooldownLabel = CreateToolkitValueLabel();
-            cooldownCard.Add(_toolkitCooldownLabel);
-
-            var effectCard = CreateToolkitCard(ToolkitMargin + ToolkitCardWidth + 8f, ToolkitMargin + ToolkitCardHeight + 8f, ToolkitCardWidth, ToolkitCardHeight, "STATUS");
-            _toolkitEffectLabel = CreateToolkitValueLabel();
-            effectCard.Add(_toolkitEffectLabel);
-
-            _activeHudOverlay.Add(statusCard);
-            _activeHudOverlay.Add(scoreCard);
-            _activeHudOverlay.Add(cooldownCard);
-            _activeHudOverlay.Add(effectCard);
-            _uiRoot.Add(_activeHudOverlay);
-
-            _resultsOverlay = new VisualElement();
-            _resultsOverlay.style.position = Position.Absolute;
-            _resultsOverlay.style.left = 0f;
-            _resultsOverlay.style.right = 0f;
-            _resultsOverlay.style.top = 0f;
-            _resultsOverlay.style.bottom = 0f;
-            _resultsOverlay.style.justifyContent = Justify.Center;
-            _resultsOverlay.style.alignItems = Align.Center;
-            _resultsOverlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.42f);
-
-            var resultsCard = new VisualElement();
-            resultsCard.style.width = 360f;
-            resultsCard.style.minWidth = 280f;
-            resultsCard.style.maxWidth = 360f;
-            resultsCard.style.paddingLeft = 18f;
-            resultsCard.style.paddingRight = 18f;
-            resultsCard.style.paddingTop = 18f;
-            resultsCard.style.paddingBottom = 18f;
-            resultsCard.style.backgroundColor = new Color(0.08f, 0.11f, 0.17f, 0.94f);
-            resultsCard.style.borderLeftWidth = 2f;
-            resultsCard.style.borderRightWidth = 2f;
-            resultsCard.style.borderTopWidth = 2f;
-            resultsCard.style.borderBottomWidth = 2f;
-            resultsCard.style.borderLeftColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            resultsCard.style.borderRightColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            resultsCard.style.borderTopColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-            resultsCard.style.borderBottomColor = new Color(0.39f, 0.55f, 0.75f, 1f);
-
-            _toolkitResultsTitleLabel = new Label();
-            _toolkitResultsTitleLabel.style.fontSize = 20f;
-            _toolkitResultsTitleLabel.style.color = Color.white;
-            _toolkitResultsTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-
-            _toolkitResultsScoreLabel = new Label();
-            _toolkitResultsScoreLabel.style.marginTop = 8f;
-            _toolkitResultsScoreLabel.style.color = new Color(0.95f, 0.97f, 1f, 1f);
-            _toolkitResultsScoreLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-
-            _toolkitResultsDetailLabel = new Label();
-            _toolkitResultsDetailLabel.style.marginTop = 8f;
-            _toolkitResultsDetailLabel.style.whiteSpace = WhiteSpace.Normal;
-            _toolkitResultsDetailLabel.style.color = new Color(0.88f, 0.92f, 1f, 1f);
-
-            resultsCard.Add(_toolkitResultsTitleLabel);
-            resultsCard.Add(_toolkitResultsScoreLabel);
-            resultsCard.Add(_toolkitResultsDetailLabel);
-            _resultsOverlay.Add(resultsCard);
-            _uiRoot.Add(_resultsOverlay);
-            ApplyToolkitFontDefaults();
+            _toolkitUsesAuthoredAssets = false;
         }
 
         private void ApplyToolkitFontDefaults()
@@ -1268,7 +1340,7 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             var localPlayer = GetLocalPlayer();
-            var opponent = _playerVisuals.FirstOrDefault(player => !string.Equals(player.Name, _playerName, StringComparison.Ordinal));
+            var opponent = _playerVisuals.FirstOrDefault(player => !string.Equals(player.Name, GetEffectiveLocalPlayerName(), StringComparison.Ordinal));
             var preMatchVisible = !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
 
             _preMatchOverlay.style.display = preMatchVisible ? DisplayStyle.Flex : DisplayStyle.None;
@@ -1292,6 +1364,8 @@ namespace BatteryRushArena.NetworkSpike
             var normalizedRoomCode = NormalizeRoomCode(_roomCode);
             var hasJoinedRoomSession = isConnected && IsAnyRoomState("Lobby", "Countdown", "Active", "Ended", "Saving", "ResultsReady");
             var canUsePreMatchActions = !hasJoinedRoomSession && !IsRoomState("Countdown") && !IsAnyRoomState("Active", "Ended", "Saving", "ResultsReady");
+            _toolkitPlayerNameField?.SetEnabled(!hasJoinedRoomSession);
+            _toolkitRoomCodeField?.SetEnabled(canUsePreMatchActions);
             _toolkitReadyButton.SetEnabled(isConnected && IsAnyRoomState("Lobby", "Countdown"));
             _toolkitConnectButton.SetEnabled(!isConnected);
             _toolkitCreateButton.SetEnabled(canUsePreMatchActions);
@@ -1323,6 +1397,21 @@ namespace BatteryRushArena.NetworkSpike
                 _toolkitEffectLabel.text = localPlayer is null ? "Awaiting feed" : BuildEffectLabel(localPlayer);
             }
 
+            if (_toolkitNetworkPanel != null)
+            {
+                _toolkitNetworkPanel.style.display = DisplayStyle.Flex;
+            }
+
+            if (_toolkitNetworkTelemetryLabel != null)
+            {
+                _toolkitNetworkTelemetryLabel.text = BuildNetworkTelemetrySummary();
+            }
+
+            if (_toolkitNetworkEventsLabel != null)
+            {
+                _toolkitNetworkEventsLabel.text = BuildRecentEventsSummary();
+            }
+
             if (_toolkitResultsTitleLabel != null)
             {
                 _toolkitResultsTitleLabel.text = BuildWinnerSummary();
@@ -1335,7 +1424,12 @@ namespace BatteryRushArena.NetworkSpike
 
             if (_toolkitResultsDetailLabel != null)
             {
-                _toolkitResultsDetailLabel.text = $"State: {FormatValue(_lastServerMessage.RoomState)}\nReason: {FormatValue(_lastServerMessage.EndReason)}\nPersist: {FormatValue(_lastServerMessage.PersistenceStatus)}";
+                _toolkitResultsDetailLabel.text =
+                    $"State: {FormatValue(_lastServerMessage.RoomState)}\n" +
+                    $"Reason: {FormatValue(_lastServerMessage.EndReason)}\n" +
+                    $"Persist: {FormatValue(_lastServerMessage.PersistenceStatus)}\n" +
+                    $"{FormatValue(_lastServerMessage.PersistenceDetail)}\n" +
+                    $"{BuildLeaderboardSummary()}";
             }
         }
 
@@ -1383,30 +1477,66 @@ namespace BatteryRushArena.NetworkSpike
         {
             if (IsRoomState("Countdown"))
             {
-                return "Countdown";
+                return "DEPLOY COUNTDOWN";
             }
 
             if (IsRoomState("Lobby"))
             {
-                return "Lobby";
+                return "TACTICAL LOBBY";
             }
 
-            return "Main Menu";
+            return "ARENA UPLINK";
         }
 
         private string BuildPreMatchSummary()
         {
             if (IsRoomState("Countdown"))
             {
-                return $"Room {FormatValue(_roomCode)} · Ready {_lastServerMessage.ReadyPlayers}/{Mathf.Max(1, _lastServerMessage.PlayerCount)}";
+                return $"Room {FormatValue(_roomCode)} · Host {FormatValue(_lastServerMessage.HostPlayerName)}";
             }
 
             if (IsRoomState("Lobby"))
             {
-                return $"Room {FormatValue(_roomCode)} · Players {_lastServerMessage.PlayerCount} · Ready {_lastServerMessage.ReadyPlayers}";
+                return $"Room {FormatValue(_roomCode)} · Host {FormatValue(_lastServerMessage.HostPlayerName)} · Ready {_lastServerMessage.ReadyPlayers}/{Mathf.Max(1, _lastServerMessage.PlayerCount)}";
             }
 
             return $"Host {_config.Host}:{_config.Port} · Create/Join auto-connects";
+        }
+
+        private string BuildNetworkTelemetrySummary()
+        {
+            var sessionShort = AbbreviateValue(_lastServerMessage.SessionId, 8);
+            var connectedPlayer = _client != null && _client.IsConnected ? _client.ConnectedPlayerName : _playerName;
+            var rttText = _client != null && _client.LastHeartbeatRttMs >= 0 ? $"{_client.LastHeartbeatRttMs}ms" : "n/a";
+            var heartbeatAgeText = $"{Mathf.Max(0f, _lastServerMessage.HeartbeatAgeSeconds):0.00}s";
+            var snapshotSequence = _lastServerMessage.SnapshotSequence > 0 ? _lastServerMessage.SnapshotSequence : (_client != null ? _client.LastSnapshotSequence : 0);
+            var ackedTick = _lastServerMessage.LastProcessedClientTick > 0 ? _lastServerMessage.LastProcessedClientTick : (_client != null ? _client.LastAckedClientTick : 0);
+            var messageAgeText = "n/a";
+            if (_client != null && _client.LastMessageReceivedUtc != DateTimeOffset.MinValue)
+            {
+                messageAgeText = $"{Math.Max(0d, (DateTimeOffset.UtcNow - _client.LastMessageReceivedUtc).TotalSeconds):0.00}s";
+            }
+
+            return string.Join("\n", new[]
+            {
+                $"Player {AbbreviateValue(connectedPlayer, 12)} · Room {FormatValue(_roomCode)}",
+                $"Session {FormatValue(sessionShort)} · Msg {(_client != null ? _client.MessagesReceivedCount : 0)}",
+                $"Tick {_tick} · Snap {snapshotSequence} · Ack {ackedTick}",
+                $"RTT {rttText} · Beat {heartbeatAgeText} · MsgAge {messageAgeText}"
+            });
+        }
+
+        private string BuildRecentEventsSummary()
+        {
+            if (_logs.Count == 0)
+            {
+                return "Recent events:\n- waiting for network activity";
+            }
+
+            var entries = _logs.Skip(Mathf.Max(0, _logs.Count - 2))
+                .Select(entry => AbbreviateValue(entry, 36))
+                .ToArray();
+            return "Recent events:\n- " + string.Join("\n- ", entries);
         }
 
         private async Task ConnectFromUiAsync()
@@ -1423,6 +1553,30 @@ namespace BatteryRushArena.NetworkSpike
             catch (Exception ex)
             {
                 AppendLog($"Connect failed: {ex.Message}");
+            }
+        }
+
+        private void BeginInitialConnectionAttempt()
+        {
+            if (_autoConnectAttempted || _client == null)
+            {
+                return;
+            }
+
+            _autoConnectAttempted = true;
+            _ = AutoConnectSilentlyAsync();
+        }
+
+        private async Task AutoConnectSilentlyAsync()
+        {
+            try
+            {
+                await EnsureConnectedFromUiAsync();
+                AppendLog($"Auto-connected as {GetEffectiveLocalPlayerName()}.");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Auto-connect skipped: {ex.Message}");
             }
         }
 
@@ -1492,19 +1646,134 @@ namespace BatteryRushArena.NetworkSpike
 
         private async Task EnsureConnectedFromUiAsync()
         {
-            if (_client == null || _client.IsConnected)
+            if (_client == null)
             {
                 return;
+            }
+
+            _playerName = NormalizePlayerName(_playerName);
+            if (string.IsNullOrWhiteSpace(_playerName))
+            {
+                throw new InvalidOperationException("Player name is required.");
+            }
+
+            if (_client.IsConnected)
+            {
+                if (string.Equals(_client.ConnectedPlayerName, _playerName, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                AppendLog($"Reconnect required to apply player name change: {_client.ConnectedPlayerName} -> {_playerName}");
+                _client.Disconnect();
+                ResetTransientSessionView();
             }
 
             await _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, GetLifetimeToken());
         }
 
+        private async Task StartMatchFromUiAsync()
+        {
+            if (_client == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await _client.StartMatchAsync(GetLifetimeToken());
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Start match failed: {ex.Message}");
+            }
+        }
+
+        private async Task ReturnToLobbyFromUiAsync()
+        {
+            if (_client != null && _client.IsConnected)
+            {
+                _client.Disconnect();
+            }
+
+            ResetTransientSessionView();
+
+            try
+            {
+                await EnsureConnectedFromUiAsync();
+                AppendLog("Returned to lobby.");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Return to lobby failed: {ex.Message}");
+            }
+        }
+
         private CancellationToken GetLifetimeToken() =>
             _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None;
 
+        private void ResetTransientSessionView()
+        {
+            _roomCode = string.Empty;
+            _readyRequested = false;
+            _lastServerMessage = new SpikeServerMessage();
+            _activeBatteryIds = Array.Empty<int>();
+            _batteryPositionsById.Clear();
+            _trapPositionsById.Clear();
+            _playerVisuals.Clear();
+            SyncScenePresentation();
+            RefreshUiToolkitOverlay();
+        }
+
+        private static bool MessageCarriesRoomListings(string messageType) =>
+            string.Equals(messageType, "hello_accepted", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(messageType, "room_joined", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(messageType, "heartbeat_ack", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(messageType, "room_listings_updated", StringComparison.OrdinalIgnoreCase);
+
+        private static string NormalizePlayerName(string playerName) =>
+            string.IsNullOrWhiteSpace(playerName) ? string.Empty : playerName.Trim();
+
+        private static string AbbreviateValue(string value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var normalized = value.Trim();
+            return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
+        }
+
+        private void EnsureDefaultPlayerName()
+        {
+            if (!string.Equals(_playerName, "PlayerA", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(_playerName))
+            {
+                return;
+            }
+
+            try
+            {
+                _playerName = FormattableString.Invariant($"Player{System.Diagnostics.Process.GetCurrentProcess().Id % 10000:0000}");
+            }
+            catch
+            {
+                _playerName = FormattableString.Invariant($"Player{UnityEngine.Random.Range(1000, 9999)}");
+            }
+        }
+
         private static string NormalizeRoomCode(string roomCode) =>
             string.IsNullOrWhiteSpace(roomCode) ? string.Empty : roomCode.Trim().ToUpperInvariant();
+
+        private bool IsLocalPlayerHost() =>
+            (!string.IsNullOrWhiteSpace(_lastServerMessage.HostSessionId) &&
+             string.Equals(_lastServerMessage.HostSessionId, _lastServerMessage.SessionId, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(_lastServerMessage.HostPlayerName) &&
+             string.Equals(_lastServerMessage.HostPlayerName, GetEffectiveLocalPlayerName(), StringComparison.Ordinal)) ||
+            (IsRoomState("Lobby") &&
+             _lastServerMessage.PlayerCount <= 1 &&
+             (_lastServerMessage.Members?.Length ?? 0) == 1 &&
+             string.Equals(_lastServerMessage.Members[0], GetEffectiveLocalPlayerName(), StringComparison.Ordinal));
 
         private string BuildLobbyMembersSummary()
         {
@@ -1515,7 +1784,7 @@ namespace BatteryRushArena.NetworkSpike
 
             var readySet = new HashSet<string>(_lastServerMessage.ReadyMembers ?? Array.Empty<string>(), StringComparer.Ordinal);
             return "Players in room:\n- " + string.Join("\n- ", _lastServerMessage.Members.Select(member =>
-                readySet.Contains(member) ? $"{member} (Ready)" : $"{member} (Waiting)"));
+                $"{member}{(string.Equals(member, _lastServerMessage.HostPlayerName, StringComparison.Ordinal) ? " (Host)" : string.Empty)}{(readySet.Contains(member) ? " (Ready)" : " (Waiting)")}"));
         }
 
         private string BuildRoomListingsSummary()
@@ -1541,6 +1810,35 @@ namespace BatteryRushArena.NetworkSpike
             }
 
             return new Color(0.33f, 0.9f, 0.53f, 1f);
+        }
+
+        private static SpriteRenderer EnsureSceneSprite(
+            string name,
+            Transform parent,
+            Vector2 position,
+            Vector3 scale,
+            Color color,
+            int sortingOrder)
+        {
+            var existingChild = parent.Find(name);
+            if (existingChild == null)
+            {
+                return CreateSceneSprite(name, parent, position, scale, color, sortingOrder);
+            }
+
+            existingChild.localPosition = new Vector3(position.x, position.y, 0f);
+            existingChild.localScale = scale;
+
+            var renderer = existingChild.GetComponent<SpriteRenderer>();
+            if (renderer == null)
+            {
+                renderer = existingChild.gameObject.AddComponent<SpriteRenderer>();
+            }
+
+            renderer.sprite = GetSolidSprite();
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return renderer;
         }
 
         private static SpriteRenderer CreateSceneSprite(
@@ -1580,7 +1878,16 @@ namespace BatteryRushArena.NetworkSpike
 
         private void EnsureOverlayStyles()
         {
-            if (_overlayTitleStyle != null && _overlaySubStyle != null && _pillLabelStyle != null)
+            if (_overlayTitleStyle != null &&
+                _overlaySubStyle != null &&
+                _pillLabelStyle != null &&
+                _fallbackPanelTitleStyle != null &&
+                _fallbackPanelBodyStyle != null &&
+                _fallbackPanelValueStyle != null &&
+                _fallbackButtonStyle != null &&
+                _fallbackFieldStyle != null &&
+                _fallbackFieldInputStyle != null &&
+                _fallbackSectionLabelStyle != null)
             {
                 return;
             }
@@ -1606,6 +1913,68 @@ namespace BatteryRushArena.NetworkSpike
                 fontStyle = FontStyle.Bold,
                 clipping = TextClipping.Clip,
                 normal = { textColor = Color.white }
+            };
+
+            _fallbackPanelTitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 28,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white }
+            };
+
+            _fallbackPanelValueStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                wordWrap = true,
+                normal = { textColor = new Color(0.96f, 0.98f, 1f, 1f) }
+            };
+
+            _fallbackPanelBodyStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 15,
+                wordWrap = true,
+                normal = { textColor = new Color(0.88f, 0.93f, 1f, 1f) }
+            };
+
+            _fallbackSectionLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 14,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.60f, 0.84f, 0.96f, 1f) }
+            };
+
+            _fallbackButtonStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 46f,
+                normal = { textColor = Color.white }
+            };
+            _fallbackButtonStyle.hover.textColor = Color.white;
+            _fallbackButtonStyle.active.textColor = Color.white;
+
+            _fallbackFieldStyle = new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = Color.white }
+            };
+
+            _fallbackFieldInputStyle = new GUIStyle(GUI.skin.textField)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = 18,
+                padding = new RectOffset(12, 12, 8, 8),
+                normal = { textColor = Color.white, background = null },
+                focused = { textColor = Color.white, background = null },
+                active = { textColor = Color.white, background = null },
+                hover = { textColor = Color.white, background = null },
+                border = new RectOffset(0, 0, 0, 0)
             };
         }
 
@@ -1650,6 +2019,36 @@ namespace BatteryRushArena.NetworkSpike
             GUI.Label(new Rect(rect.x + 12f, rect.y + 20f, rect.width - 18f, 16f), value);
         }
 
+        private static void DrawPanelChrome(Rect rect, Color fill, Color border)
+        {
+            DrawFilledRect(rect, fill);
+            DrawOutline(rect, border, 2f);
+        }
+
+        private void DrawHudStrip(Rect rect, string label, string value)
+        {
+            DrawPanelChrome(rect, new Color(0.05f, 0.09f, 0.16f, 0.92f), new Color(0.32f, 0.78f, 0.95f, 0.92f));
+            GUI.Label(new Rect(rect.x + 18f, rect.y + 10f, rect.width - 36f, 20f), label, _fallbackSectionLabelStyle);
+            GUI.Label(new Rect(rect.x + 18f, rect.y + 34f, rect.width - 36f, rect.height - 42f), value, _fallbackPanelValueStyle);
+        }
+
+        private bool DrawFallbackButton(Rect rect, string text, bool primary)
+        {
+            var hover = rect.Contains(Event.current.mousePosition);
+            var fill = primary
+                ? (hover ? new Color(0.20f, 0.46f, 0.72f, 1f) : new Color(0.14f, 0.34f, 0.56f, 1f))
+                : (hover ? new Color(0.16f, 0.24f, 0.38f, 1f) : new Color(0.10f, 0.17f, 0.28f, 1f));
+            DrawPanelChrome(rect, fill, new Color(0.48f, 0.74f, 0.94f, 0.9f));
+            GUI.Label(rect, text, _fallbackButtonStyle);
+            return GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        }
+
+        private string DrawFallbackTextField(Rect rect, string value)
+        {
+            DrawPanelChrome(rect, new Color(0.08f, 0.12f, 0.20f, 0.96f), new Color(0.42f, 0.70f, 0.94f, 0.75f));
+            return GUI.TextField(new Rect(rect.x + 2f, rect.y + 2f, rect.width - 4f, rect.height - 4f), value, _fallbackFieldInputStyle);
+        }
+
         private sealed class PlayerVisualState
         {
             public string Name = string.Empty;
@@ -1669,6 +2068,126 @@ namespace BatteryRushArena.NetworkSpike
             public string Source = string.Empty;
             public float RemainingSeconds;
             public float ImmunityRemainingSeconds;
+        }
+    }
+
+    public readonly struct NetworkSpikeActiveHudSnapshot
+    {
+        public NetworkSpikeActiveHudSnapshot(
+            string matchLabel,
+            string scoreLabel,
+            string statusLabel,
+            string cooldownLabel,
+            string networkTelemetry,
+            string recentEvents)
+        {
+            MatchLabel = matchLabel;
+            ScoreLabel = scoreLabel;
+            StatusLabel = statusLabel;
+            CooldownLabel = cooldownLabel;
+            NetworkTelemetry = networkTelemetry;
+            RecentEvents = recentEvents;
+        }
+
+        public string MatchLabel { get; }
+        public string ScoreLabel { get; }
+        public string StatusLabel { get; }
+        public string CooldownLabel { get; }
+        public string NetworkTelemetry { get; }
+        public string RecentEvents { get; }
+    }
+
+    public static class NetworkSpikeActiveHudRenderer
+    {
+        private static GUIStyle panelValueStyle;
+        private static GUIStyle panelBodyStyle;
+        private static GUIStyle sectionLabelStyle;
+
+        public static void Draw(Rect viewportRect, NetworkSpikeActiveHudSnapshot snapshot)
+        {
+            EnsureStyles();
+
+            var topCardWidth = Mathf.Min(viewportRect.width * 0.34f, 430f);
+            var scoreCardWidth = Mathf.Min(viewportRect.width * 0.34f, 480f);
+            var topLeft = new Rect(viewportRect.x + 24f, viewportRect.y + 24f, topCardWidth, 122f);
+            var topRight = new Rect(viewportRect.x + viewportRect.width - scoreCardWidth - 24f, viewportRect.y + 24f, scoreCardWidth, 122f);
+            var bottomLeft = new Rect(viewportRect.x + 24f, viewportRect.y + viewportRect.height - 132f, Mathf.Min(viewportRect.width * 0.34f, 440f), 102f);
+            var bottomRight = new Rect(viewportRect.x + viewportRect.width - Mathf.Min(viewportRect.width * 0.28f, 320f) - 24f, viewportRect.y + viewportRect.height - 132f, Mathf.Min(viewportRect.width * 0.28f, 320f), 102f);
+
+            DrawHudStrip(topLeft, "MATCH", snapshot.MatchLabel);
+            DrawHudStrip(topRight, "SCORE", snapshot.ScoreLabel);
+            DrawHudStrip(bottomLeft, "STATUS", snapshot.StatusLabel);
+            DrawHudStrip(bottomRight, "COOLDOWN", snapshot.CooldownLabel);
+
+            var width = Mathf.Min(viewportRect.width * 0.34f, 480f);
+            var height = Mathf.Min(viewportRect.height * 0.30f, 250f);
+            var networkRect = new Rect(viewportRect.x + viewportRect.width - width - 24f, viewportRect.y + 158f, width, height);
+            DrawPanelChrome(networkRect, new Color(0.04f, 0.07f, 0.12f, 0.82f), new Color(0.30f, 0.56f, 0.78f, 0.9f));
+            GUI.Label(new Rect(networkRect.x + 18f, networkRect.y + 16f, networkRect.width - 36f, 24f), "NETWORK TELEMETRY", sectionLabelStyle);
+            GUI.Label(new Rect(networkRect.x + 18f, networkRect.y + 46f, networkRect.width - 36f, 96f), snapshot.NetworkTelemetry, panelBodyStyle);
+            GUI.Label(new Rect(networkRect.x + 18f, networkRect.y + 150f, networkRect.width - 36f, networkRect.height - 166f), snapshot.RecentEvents, panelBodyStyle);
+        }
+
+        private static void DrawHudStrip(Rect rect, string label, string value)
+        {
+            DrawPanelChrome(rect, new Color(0.05f, 0.09f, 0.16f, 0.92f), new Color(0.32f, 0.78f, 0.95f, 0.92f));
+            GUI.Label(new Rect(rect.x + 18f, rect.y + 10f, rect.width - 36f, 20f), label, sectionLabelStyle);
+            GUI.Label(new Rect(rect.x + 18f, rect.y + 34f, rect.width - 36f, rect.height - 42f), value, panelValueStyle);
+        }
+
+        private static void EnsureStyles()
+        {
+            if (panelValueStyle != null)
+            {
+                return;
+            }
+
+            panelValueStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                wordWrap = true,
+                normal = { textColor = new Color(0.96f, 0.98f, 1f, 1f) }
+            };
+
+            panelBodyStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 15,
+                wordWrap = true,
+                normal = { textColor = new Color(0.88f, 0.93f, 1f, 1f) }
+            };
+
+            sectionLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = 14,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.60f, 0.84f, 0.96f, 1f) }
+            };
+        }
+
+        private static void DrawPanelChrome(Rect rect, Color fill, Color border)
+        {
+            DrawFilledRect(rect, fill);
+            DrawOutline(rect, border, 2f);
+        }
+
+        private static void DrawFilledRect(Rect rect, Color color)
+        {
+            var previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private static void DrawOutline(Rect rect, Color color, float thickness)
+        {
+            DrawFilledRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            DrawFilledRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            DrawFilledRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            DrawFilledRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
     }
 }

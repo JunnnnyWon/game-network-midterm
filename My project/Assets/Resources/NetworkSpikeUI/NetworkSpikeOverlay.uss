@@ -1,125 +1,266 @@
 .root {
     width: 100%;
     height: 100%;
+    background-color: rgba(5, 9, 18, 0.18);
+}
+
+.layout-shell {
+    width: 100%;
+    height: 100%;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-top: 18px;
+    padding-bottom: 18px;
 }
 
 .panel {
-    background-color: rgba(20, 28, 43, 0.94);
+    background-color: rgba(10, 15, 26, 0.92);
     border-left-width: 2px;
     border-right-width: 2px;
     border-top-width: 2px;
     border-bottom-width: 2px;
-    border-left-color: rgb(99, 140, 191);
-    border-right-color: rgb(99, 140, 191);
-    border-top-color: rgb(99, 140, 191);
-    border-bottom-color: rgb(99, 140, 191);
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-top: 16px;
-    padding-bottom: 16px;
+    border-left-color: rgb(86, 208, 235);
+    border-right-color: rgb(86, 208, 235);
+    border-top-color: rgb(86, 208, 235);
+    border-bottom-color: rgb(86, 208, 235);
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    padding-left: 22px;
+    padding-right: 22px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.panel-header {
+    margin-bottom: 10px;
 }
 
 .prematch-panel {
     position: absolute;
-    left: 16px;
-    top: 16px;
-    width: 32%;
-    min-width: 280px;
-    max-width: 420px;
+    left: 18px;
+    top: 18px;
+    width: 40%;
+    min-width: 320px;
+    max-width: 560px;
 }
 
 .panel-title {
-    font-size: 20px;
-    color: rgb(255, 255, 255);
+    font-size: 32px;
+    color: rgb(251, 253, 255);
+    unity-font-style: bold;
+    letter-spacing: 0.5px;
+}
+
+.panel-subtitle {
+    margin-top: 6px;
+    font-size: 18px;
+    color: rgb(165, 220, 235);
     unity-font-style: bold;
 }
 
+.section-stack {
+    margin-top: 12px;
+}
+
+.meta-stack {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top-width: 1px;
+    border-top-color: rgba(126, 170, 214, 0.28);
+}
+
 .body-text {
-    margin-top: 6px;
-    color: rgb(224, 235, 255);
+    margin-top: 8px;
+    color: rgb(235, 241, 255);
     white-space: normal;
+    font-size: 18px;
+    line-height: 25px;
+}
+
+.emphasis-text {
+    color: rgb(251, 253, 255);
+    unity-font-style: bold;
 }
 
 .field {
-    margin-top: 10px;
+    margin-top: 12px;
+    min-height: 58px;
+    font-size: 20px;
+    color: rgb(244, 248, 255);
+}
+
+.field > .unity-base-field__label {
+    min-width: 132px;
+    color: rgb(165, 220, 235);
+    font-size: 17px;
+    unity-font-style: bold;
+}
+
+.field > .unity-base-field__input,
+.field > .unity-text-element {
+    min-height: 44px;
+    background-color: rgba(22, 33, 54, 0.98);
+    color: rgb(250, 252, 255);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(118, 177, 232, 0.48);
+    border-right-color: rgba(118, 177, 232, 0.48);
+    border-top-color: rgba(118, 177, 232, 0.48);
+    border-bottom-color: rgba(118, 177, 232, 0.48);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    unity-text-align: middle-left;
 }
 
 .button-row {
     flex-direction: row;
     flex-wrap: wrap;
-    margin-top: 10px;
+    gap: 10px;
+    margin-top: 14px;
 }
 
 .action-button {
-    margin-right: 6px;
-    margin-bottom: 6px;
-    min-width: 96px;
+    min-width: 120px;
+    min-height: 56px;
     flex-grow: 1;
+    font-size: 19px;
+    unity-font-style: bold;
+    background-color: rgba(28, 43, 72, 0.96);
+    color: rgb(248, 251, 255);
+    unity-background-image-tint-color: rgba(28, 43, 72, 0.96);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(141, 198, 235, 0.28);
+    border-right-color: rgba(141, 198, 235, 0.28);
+    border-top-color: rgba(141, 198, 235, 0.28);
+    border-bottom-color: rgba(141, 198, 235, 0.28);
+}
+
+.action-button:hover {
+    background-color: rgba(42, 63, 100, 0.98);
+    unity-background-image-tint-color: rgba(42, 63, 100, 0.98);
+}
+
+.action-button:active {
+    background-color: rgba(58, 92, 138, 1);
+    unity-background-image-tint-color: rgba(58, 92, 138, 1);
+}
+
+.action-button-primary {
+    background-color: rgba(34, 76, 118, 0.98);
+    unity-background-image-tint-color: rgba(34, 76, 118, 0.98);
+}
+
+.action-button-primary:hover {
+    background-color: rgba(49, 103, 153, 1);
+    unity-background-image-tint-color: rgba(49, 103, 153, 1);
 }
 
 .ready-button {
-    margin-top: 10px;
+    min-width: 220px;
+}
+
+.prematch-footer {
+    margin-top: 16px;
 }
 
 .countdown-label {
-    margin-top: 10px;
-    font-size: 18px;
-    color: rgb(255, 237, 128);
+    margin-top: 16px;
+    font-size: 38px;
+    color: rgb(255, 214, 94);
     unity-font-style: bold;
 }
 
 .active-overlay {
     position: absolute;
-    left: 16px;
-    top: 16px;
-    right: 16px;
-    bottom: 16px;
+    left: 18px;
+    right: 18px;
+    top: 18px;
+    bottom: 18px;
+    pointer-events: none;
+}
+
+.hud-top-row {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.hud-bottom-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 14px;
 }
 
 .hud-card {
-    position: absolute;
-    width: 220px;
-    height: 72px;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    background-color: rgba(18, 26, 41, 0.9);
+    min-width: 180px;
+    min-height: 104px;
+    max-width: 340px;
+    flex-grow: 1;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    background-color: rgba(12, 19, 31, 0.9);
     border-left-width: 2px;
     border-right-width: 2px;
     border-top-width: 2px;
     border-bottom-width: 2px;
-    border-left-color: rgb(79, 107, 148);
-    border-right-color: rgb(79, 107, 148);
-    border-top-color: rgb(79, 107, 148);
-    border-bottom-color: rgb(79, 107, 148);
+    border-left-color: rgba(112, 167, 219, 0.62);
+    border-right-color: rgba(112, 167, 219, 0.62);
+    border-top-color: rgba(112, 167, 219, 0.62);
+    border-bottom-color: rgba(112, 167, 219, 0.62);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
-.hud-card-left {
-    left: 0;
-    top: 0;
+.hud-card-key {
+    max-width: 360px;
 }
 
-.hud-card-right {
-    left: 228px;
-    top: 0;
+.hud-card-score {
+    max-width: 420px;
 }
 
-.hud-card-secondary-row {
-    top: 80px;
+.hud-card-status {
+    max-width: 460px;
 }
 
 .hud-card-title {
-    font-size: 11px;
-    color: rgb(184, 209, 242);
+    font-size: 16px;
+    color: rgb(153, 222, 241);
     unity-font-style: bold;
 }
 
 .hud-card-value {
-    margin-top: 6px;
-    font-size: 14px;
-    color: rgb(255, 255, 255);
+    margin-top: 10px;
+    font-size: 24px;
+    line-height: 30px;
+    color: rgb(250, 252, 255);
     white-space: normal;
+    unity-font-style: bold;
 }
 
 .results-overlay {
@@ -130,17 +271,51 @@
     bottom: 0;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.42);
+    background-color: rgba(2, 4, 10, 0.54);
 }
 
 .results-panel {
-    width: 32%;
-    min-width: 280px;
-    max-width: 360px;
+    width: 46%;
+    min-width: 340px;
+    max-width: 700px;
 }
 
 .results-score {
-    margin-top: 8px;
-    color: rgb(242, 247, 255);
+    margin-top: 12px;
+    color: rgb(248, 250, 255);
     unity-font-style: bold;
+    font-size: 24px;
+}
+
+.results-body-text {
+    margin-top: 12px;
+    line-height: 26px;
+}
+
+.network-panel {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    width: 30%;
+    min-width: 260px;
+    max-width: 420px;
+    max-height: 34%;
+    background-color: rgba(7, 11, 20, 0.82);
+    border-left-color: rgba(114, 161, 212, 0.42);
+    border-right-color: rgba(114, 161, 212, 0.42);
+    border-top-color: rgba(114, 161, 212, 0.42);
+    border-bottom-color: rgba(114, 161, 212, 0.42);
+}
+
+.network-body-text {
+    font-size: 15px;
+    line-height: 21px;
+    color: rgb(210, 225, 245);
+    white-space: normal;
+    overflow: hidden;
+}
+
+.unity-label,
+.unity-button__text {
+    color: rgb(244, 248, 255);
 }

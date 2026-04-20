@@ -1,45 +1,73 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="network-spike-root" class="root">
-        <ui:VisualElement name="prematch-overlay" class="panel prematch-panel">
-            <ui:Label name="prematch-title" class="panel-title" text="Main Menu" />
-            <ui:Label name="prematch-summary" class="body-text" text="Host" />
-            <ui:TextField name="player-name-field" label="Player" class="field" />
-            <ui:TextField name="room-code-field" label="Room Code" class="field" />
-            <ui:VisualElement name="prematch-actions" class="button-row">
-                <ui:Button name="connect-button" text="Connect" class="action-button" />
-                <ui:Button name="create-button" text="Create" class="action-button" />
-                <ui:Button name="join-button" text="Join" class="action-button" />
-            </ui:VisualElement>
-            <ui:Label name="prematch-members" class="body-text" text="Members" />
-            <ui:Label name="prematch-rooms" class="body-text" text="Open rooms" />
-            <ui:Button name="ready-button" text="Set Ready" class="action-button ready-button" />
-            <ui:Label name="countdown-label" class="countdown-label" text="Match starts in 3" />
-        </ui:VisualElement>
+        <ui:VisualElement class="layout-shell">
+            <ui:VisualElement name="prematch-overlay" class="panel prematch-panel">
+                <ui:VisualElement class="panel-header">
+                <ui:Label name="prematch-title" class="panel-title" text="TACTICAL LOBBY" />
+                    <ui:Label name="prematch-summary" class="panel-subtitle" text="Host" />
+                </ui:VisualElement>
 
-        <ui:VisualElement name="active-hud-overlay" class="active-overlay">
-            <ui:VisualElement class="hud-card hud-card-left">
-                <ui:Label class="hud-card-title" text="MATCH" />
-                <ui:Label name="toolkit-top-label" class="hud-card-value" text="Room" />
-            </ui:VisualElement>
-            <ui:VisualElement class="hud-card hud-card-left hud-card-secondary-row">
-                <ui:Label class="hud-card-title" text="SCORE" />
-                <ui:Label name="toolkit-score-label" class="hud-card-value" text="Score" />
-            </ui:VisualElement>
-            <ui:VisualElement class="hud-card hud-card-right">
-                <ui:Label class="hud-card-title" text="COOLDOWN" />
-                <ui:Label name="toolkit-cooldown-label" class="hud-card-value" text="Cooldown" />
-            </ui:VisualElement>
-            <ui:VisualElement class="hud-card hud-card-right hud-card-secondary-row">
-                <ui:Label class="hud-card-title" text="STATUS" />
-                <ui:Label name="toolkit-effect-label" class="hud-card-value" text="Status" />
-            </ui:VisualElement>
-        </ui:VisualElement>
+                <ui:VisualElement class="section-stack">
+                    <ui:TextField name="player-name-field" label="Player" class="field" />
+                    <ui:TextField name="room-code-field" label="Room Code" class="field" />
+                </ui:VisualElement>
 
-        <ui:VisualElement name="results-overlay" class="results-overlay">
-            <ui:VisualElement class="panel results-panel">
-                <ui:Label name="toolkit-results-title-label" class="panel-title" text="Results" />
-                <ui:Label name="toolkit-results-score-label" class="results-score" text="Score" />
-                <ui:Label name="toolkit-results-detail-label" class="body-text" text="Details" />
+                <ui:VisualElement name="prematch-actions" class="button-row">
+                    <ui:Button name="connect-button" text="SYNC" class="action-button" />
+                    <ui:Button name="create-button" text="HOST MATCH" class="action-button action-button-primary" />
+                    <ui:Button name="join-button" text="ENTER ROOM" class="action-button" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="section-stack meta-stack">
+                    <ui:Label name="prematch-members" class="body-text emphasis-text" text="Members" />
+                    <ui:Label name="prematch-rooms" class="body-text" text="Open rooms" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="prematch-footer">
+                    <ui:Button name="ready-button" text="Set Ready" class="action-button ready-button" />
+                    <ui:Label name="countdown-label" class="countdown-label" text="Match starts in 3" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="active-hud-overlay" class="active-overlay">
+                <ui:VisualElement class="hud-top-row">
+                    <ui:VisualElement class="hud-card hud-card-key">
+                        <ui:Label class="hud-card-title" text="MATCH" />
+                        <ui:Label name="toolkit-top-label" class="hud-card-value" text="Room" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="hud-card hud-card-score">
+                        <ui:Label class="hud-card-title" text="SCORE" />
+                        <ui:Label name="toolkit-score-label" class="hud-card-value" text="Score" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="hud-bottom-row">
+                    <ui:VisualElement class="hud-card hud-card-status">
+                        <ui:Label class="hud-card-title" text="STATUS" />
+                        <ui:Label name="toolkit-effect-label" class="hud-card-value" text="Status" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="hud-card hud-card-key">
+                        <ui:Label class="hud-card-title" text="COOLDOWN" />
+                        <ui:Label name="toolkit-cooldown-label" class="hud-card-value" text="Cooldown" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="results-overlay" class="results-overlay">
+                <ui:VisualElement class="panel results-panel">
+                    <ui:VisualElement class="panel-header">
+                        <ui:Label name="toolkit-results-title-label" class="panel-title" text="Results" />
+                        <ui:Label class="panel-subtitle" text="Authoritative match summary" />
+                    </ui:VisualElement>
+                    <ui:Label name="toolkit-results-score-label" class="results-score" text="Score" />
+                    <ui:Label name="toolkit-results-detail-label" class="body-text results-body-text" text="Details" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="network-panel" class="panel network-panel">
+            <ui:Label name="network-panel-title" class="hud-card-title" text="LIVE NET TRACE" />
+                <ui:Label name="network-telemetry-label" class="body-text network-body-text" text="Telemetry" />
+                <ui:Label name="network-events-label" class="body-text network-body-text" text="Events" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

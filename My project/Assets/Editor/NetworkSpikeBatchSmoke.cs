@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BatteryRushArena.NetworkSpike;
@@ -44,6 +45,18 @@ namespace BatteryRushArena.Editor
             {
                 Debug.LogError("Room creation did not return a room code.");
                 return 2;
+            }
+
+            if (!observations.RoomListingSyncObserved)
+            {
+                Debug.LogError("Connected lobby client did not receive an updated room listing after room creation.");
+                return 3;
+            }
+
+            if (!observations.ReadableRoomCodeObserved)
+            {
+                Debug.LogError("Room code format did not stay in the expected ROOM## family.");
+                return 3;
             }
 
             if (!await VerifyPreMatchOverlayAsync(clientA, roomCode, cts.Token))
@@ -97,10 +110,12 @@ namespace BatteryRushArena.Editor
             {
                 observations.ObserveRoomCode(msg);
                 observations.ObserveRoomSnapshot(msg);
+                observations.ObserveRoomListings(msg);
             };
             clientB.MessageReceived += msg =>
             {
                 observations.ObserveRoomCode(msg);
+                observations.ObserveRoomListings(msg);
                 observations.ObserveStale(msg);
             };
             badClient.MessageReceived += observations.ObserveMismatch;
@@ -113,13 +128,13 @@ namespace BatteryRushArena.Editor
             SmokeObservations observations,
             CancellationToken cancellationToken)
         {
+            await clientB.ConnectAndHandshakeAsync("PlayerB", cancellationToken: cancellationToken);
+            await Task.Delay(200, cancellationToken);
+
             await clientA.ConnectAndHandshakeAsync("PlayerA", cancellationToken: cancellationToken);
             await Task.Delay(200, cancellationToken);
             await clientA.CreateRoomAsync(cancellationToken);
             await Task.Delay(500, cancellationToken);
-
-            await clientB.ConnectAndHandshakeAsync("PlayerB", cancellationToken: cancellationToken);
-            await Task.Delay(200, cancellationToken);
             await clientB.JoinRoomAsync(observations.RoomCode, cancellationToken);
             await Task.Delay(500, cancellationToken);
 
@@ -446,6 +461,13 @@ namespace BatteryRushArena.Editor
                     return false;
                 }
 
+                if (!app.ToolkitNetworkTelemetryForTesting.Contains("Snapshot", StringComparison.Ordinal) ||
+                    !app.ToolkitNetworkEventsForTesting.Contains("Recent events", StringComparison.Ordinal))
+                {
+                    Debug.LogError("UI Toolkit pre-match overlay did not expose the network telemetry/event panel.");
+                    return false;
+                }
+
                 var playerActorsBeforeHeartbeat = app.ScenePlayerActorCountForTesting;
                 app.ReceiveServerMessageForTesting(new SpikeServerMessage
                 {
@@ -539,6 +561,12 @@ namespace BatteryRushArena.Editor
                 if (Vector2.Distance(playerAPosition, presentedPosition) > 0.01f)
                 {
                     Debug.LogError("Scene-backed presentation did not place PlayerA at the authoritative world position.");
+                    return false;
+                }
+
+                if (!app.ToolkitNetworkTelemetryForTesting.Contains("Ack tick", StringComparison.Ordinal))
+                {
+                    Debug.LogError("Active HUD did not expose network acknowledgement telemetry.");
                     return false;
                 }
 
@@ -815,13 +843,27 @@ namespace BatteryRushArena.Editor
             public bool SavingStatusObserved { get; private set; }
             public bool SavedStatusObserved { get; private set; }
             public bool ResultsPayloadObserved { get; private set; }
+            public bool RoomListingSyncObserved { get; private set; }
+            public bool ReadableRoomCodeObserved { get; private set; }
 
             public void ObserveRoomCode(SpikeServerMessage message)
             {
                 if (message.Type == "room_joined" && string.IsNullOrEmpty(RoomCode))
                 {
                     RoomCode = message.RoomCode;
+                    ReadableRoomCodeObserved = message.RoomCode.StartsWith("ROOM", StringComparison.Ordinal)
+                        && message.RoomCode.Length >= 6;
                 }
+            }
+
+            public void ObserveRoomListings(SpikeServerMessage message)
+            {
+                if (string.IsNullOrWhiteSpace(RoomCode) || message.RoomListings == null)
+                {
+                    return;
+                }
+
+                RoomListingSyncObserved |= message.RoomListings.Any(entry => entry.Contains(RoomCode, StringComparison.Ordinal));
             }
 
             public void ObserveRoomSnapshot(SpikeServerMessage message)
@@ -891,10 +933,12 @@ namespace BatteryRushArena.Editor
                 && SavingStatusObserved
                 && SavedStatusObserved
                 && ResultsPayloadObserved
+                && RoomListingSyncObserved
+                && ReadableRoomCodeObserved
                 && StaleObserved;
 
             public string BuildFailureSummary(string roomCode) =>
-                $"Smoke failed. room={roomCode}, mismatch={MismatchObserved}, countdown={CountdownObserved}, active={ActiveObserved}, movement={MovementObserved}, targetScore={TargetScoreObserved}, saving={SavingObserved}, results={ResultsObserved}, slowShot={SlowShotObserved}, trap={TrapObserved}, immunity={ImmunityObserved}, strongest={StrongestSlowObserved}, positionFeed={PositionFeedObserved}, scoreboardFeed={ScoreboardFeedObserved}, effectFeed={EffectFeedObserved}, cooldownReady={CooldownReadyObserved}, cooldownSpent={CooldownSpentObserved}, savingStatus={SavingStatusObserved}, savedStatus={SavedStatusObserved}, resultsPayload={ResultsPayloadObserved}, stale={StaleObserved}";
+                $"Smoke failed. room={roomCode}, mismatch={MismatchObserved}, countdown={CountdownObserved}, active={ActiveObserved}, movement={MovementObserved}, targetScore={TargetScoreObserved}, saving={SavingObserved}, results={ResultsObserved}, slowShot={SlowShotObserved}, trap={TrapObserved}, immunity={ImmunityObserved}, strongest={StrongestSlowObserved}, positionFeed={PositionFeedObserved}, scoreboardFeed={ScoreboardFeedObserved}, effectFeed={EffectFeedObserved}, cooldownReady={CooldownReadyObserved}, cooldownSpent={CooldownSpentObserved}, savingStatus={SavingStatusObserved}, savedStatus={SavedStatusObserved}, resultsPayload={ResultsPayloadObserved}, roomListingSync={RoomListingSyncObserved}, readableRoomCode={ReadableRoomCodeObserved}, stale={StaleObserved}";
         }
     }
 }
