@@ -38,8 +38,20 @@ public sealed class SpikeRoom
     public MatchResultPayload? PendingMatchResult { get; set; }
     public Task<PersistenceAttemptResult>? PersistenceTask { get; set; }
     public string[] LeaderboardRows { get; set; } = [];
+    public FrozenResultRoomSnapshot? FrozenResultSnapshot { get; set; }
 
 }
+
+public sealed record FrozenResultRoomSnapshot(
+    string HostSessionId,
+    string HostPlayerName,
+    int PlayerCount,
+    int ReadyPlayers,
+    string[] Members,
+    string[] ReadyMembers,
+    string[] Scoreboard,
+    string[] EffectStates,
+    string[] PlayerPositions);
 
 public readonly record struct SpikeVec2(float X, float Y)
 {

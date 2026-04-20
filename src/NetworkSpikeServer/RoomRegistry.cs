@@ -23,6 +23,7 @@ public sealed class RoomRegistry
         lock (SyncRoot)
         {
             return _rooms.Values
+                .Where(room => CanAcceptJoinUnsafe(room, maxPlayersPerRoom))
                 .OrderBy(room => room.RoomCode, StringComparer.Ordinal)
                 .Select(room =>
                 {
@@ -64,7 +65,14 @@ public sealed class RoomRegistry
                 return false;
             }
 
-            if (room.Members.Count >= maxPlayers)
+            if (IsResultState(room.State))
+            {
+                room = null;
+                error = "invalid_room_code";
+                return false;
+            }
+
+            if (!CanAcceptJoinUnsafe(room, maxPlayers))
             {
                 error = "room_full";
                 return false;
@@ -130,7 +138,10 @@ public sealed class RoomRegistry
                     affectedRoom = room;
                     if (room.Members.Count == 0)
                     {
-                        ResetEmptyRoomUnsafe(room);
+                        if (!IsResultState(room.State))
+                        {
+                            ResetEmptyRoomUnsafe(room);
+                        }
                     }
                     else if (string.Equals(room.HostSessionId, session.SessionId, StringComparison.Ordinal))
                     {
@@ -142,6 +153,25 @@ public sealed class RoomRegistry
 
             session.RoomCode = string.Empty;
             return affectedRoom;
+        }
+    }
+
+    public bool TryResetEmptyCompletedResultRoom(SpikeRoom room)
+    {
+        lock (SyncRoot)
+        {
+            if (!_rooms.TryGetValue(room.RoomCode, out var trackedRoom) || !ReferenceEquals(trackedRoom, room))
+            {
+                return false;
+            }
+
+            if (trackedRoom.Members.Count != 0 || trackedRoom.State != SpikeRoomState.ResultsReady)
+            {
+                return false;
+            }
+
+            ResetEmptyRoomUnsafe(trackedRoom);
+            return true;
         }
     }
 
@@ -159,11 +189,14 @@ public sealed class RoomRegistry
         room.PendingMatchResult = null;
         room.PersistenceTask = null;
         room.LeaderboardRows = [];
+        room.FrozenResultSnapshot = null;
         room.HostSessionId = string.Empty;
         room.ActiveBatteryIds.Clear();
         room.BatteryPositionsById.Clear();
+        room.TrapPositionsById.Clear();
         room.PendingRespawns.Clear();
         room.RecentSpawnHistory.Clear();
+        room.TrapRetriggerReadyAtBySessionTrapKey.Clear();
     }
 
     private SpikeRoom? FindRoomUnsafe(ClientSession session)
@@ -191,6 +224,15 @@ public sealed class RoomRegistry
         room.PlayerPositionsBySessionId[session.SessionId] = new SpikeVec2(0f, 0f);
         session.RoomCode = room.RoomCode;
     }
+
+    private static bool CanAcceptJoinUnsafe(SpikeRoom room, int maxPlayers) =>
+        room.Members.Count < maxPlayers &&
+        !IsResultState(room.State);
+
+    private static bool IsResultState(SpikeRoomState state) =>
+        state == SpikeRoomState.Ended ||
+        state == SpikeRoomState.Saving ||
+        state == SpikeRoomState.ResultsReady;
 
     private static void EnsureHostAssignedUnsafe(SpikeRoom room)
     {

@@ -57,6 +57,8 @@ namespace BatteryRushArena.NetworkSpike
 
         public event Action<string> LogEmitted;
 
+        public event Action ConnectionClosed;
+
         public bool IsConnected => _sessionEstablished;
 
         public string ConnectedPlayerName => _connectedPlayerName;
@@ -166,6 +168,13 @@ namespace BatteryRushArena.NetworkSpike
             {
                 Type = "start_match",
                 StartRequested = true,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
+
+        public Task LeaveRoomAsync(CancellationToken cancellationToken = default) =>
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "leave_room",
                 ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
             }, cancellationToken);
 
@@ -349,6 +358,8 @@ namespace BatteryRushArena.NetworkSpike
 
         private void ResetConnectionState()
         {
+            var shouldNotifyConnectionClosed = _stream != null || _tcpClient != null || _sessionEstablished;
+
             try
             {
                 _readerCts?.Cancel();
@@ -396,6 +407,11 @@ namespace BatteryRushArena.NetworkSpike
             _lastAckedClientTick = 0;
             _messagesReceivedCount = 0;
             _lastMessageType = string.Empty;
+
+            if (shouldNotifyConnectionClosed)
+            {
+                DispatchToMainThread(() => ConnectionClosed?.Invoke());
+            }
         }
     }
 }

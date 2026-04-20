@@ -56,7 +56,7 @@ public sealed record SpikeServerConfig(
         SlowShotMoveMultiplier: 0.65f,
         SlowShotDuration: TimeSpan.FromSeconds(1.25),
         ActiveTrapCount: 4,
-        TrapMoveMultiplier: 0.80f,
+        TrapMoveMultiplier: 0.70f,
         TrapDuration: TimeSpan.FromSeconds(0.75),
         TrapRetriggerCooldown: TimeSpan.FromSeconds(1.5),
         TrapSpawnInset: 0.9f,

@@ -88,6 +88,9 @@ public sealed class SpikeServerHost
                     case "join_room":
                         await HandleJoinRoomAsync(session, message, cancellationToken);
                         break;
+                    case "leave_room":
+                        await HandleLeaveRoomAsync(session, cancellationToken);
+                        break;
                     case "ready_state":
                         await HandleReadyStateAsync(session, message, cancellationToken);
                         break;
@@ -123,22 +126,9 @@ public sealed class SpikeServerHost
         }
         finally
         {
-            var roomBeforeRemoval = _roomRegistry.FindRoom(session);
-            if (roomBeforeRemoval is not null)
+            var (_, affectedRoom, suppressMemberRemovedSnapshot) = RemoveSessionFromCurrentRoom(session, endActiveRoomAsForfeit: true);
+            if (affectedRoom is not null && !suppressMemberRemovedSnapshot)
             {
-                lock (_roomRegistry.SyncRoot)
-                {
-                    if (roomBeforeRemoval.State == SpikeRoomState.Active)
-                    {
-                        MarkRoomEnded(roomBeforeRemoval, "DisconnectForfeit", session.PlayerName);
-                    }
-                }
-            }
-
-            var affectedRoom = _roomRegistry.Remove(session);
-            if (affectedRoom is not null)
-            {
-                ApplyDisconnectStateTransition(affectedRoom);
                 await BroadcastRoomAsync(affectedRoom, "member_removed", cancellationToken);
             }
 
@@ -359,6 +349,40 @@ public sealed class SpikeServerHost
         await BroadcastRoomAsync(joinedRoom, "room_joined", cancellationToken);
         await BroadcastRoomListingsAsync(cancellationToken);
         Console.WriteLine($"[server] room joined {joinedRoom.RoomCode} by {session.PlayerName}");
+    }
+
+    private async Task HandleLeaveRoomAsync(ClientSession session, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(session.PlayerName))
+        {
+            await SendErrorAsync(session, "handshake_required", cancellationToken);
+            return;
+        }
+
+        var (previousRoomCode, affectedRoom, suppressMemberRemovedSnapshot) = RemoveSessionFromCurrentRoom(session, endActiveRoomAsForfeit: true);
+        try
+        {
+            await SendRoomLeftAsync(
+                session,
+                previousRoomCode,
+                string.IsNullOrWhiteSpace(previousRoomCode) ? "already_in_lobby" : "returned_to_lobby",
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or InvalidOperationException)
+        {
+            Console.WriteLine($"[server] room_left ack failed for {session.SessionId}: {ex.Message}");
+        }
+
+        if (affectedRoom is not null && !suppressMemberRemovedSnapshot)
+        {
+            await BroadcastRoomAsync(affectedRoom, "member_removed", cancellationToken);
+        }
+        await BroadcastRoomListingsAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(previousRoomCode))
+        {
+            Console.WriteLine($"[server] room left {previousRoomCode} by {session.PlayerName}");
+        }
     }
 
     private async Task HandleReadyStateAsync(ClientSession session, ClientMessage message, CancellationToken cancellationToken)
@@ -606,6 +630,7 @@ public sealed class SpikeServerHost
                                 }
                                 break;
                             case SpikeRoomState.Ended:
+                                room.FrozenResultSnapshot ??= FreezeResultSnapshot(room);
                                 if (room.PendingMatchResult is null)
                                 {
                                     room.PendingMatchResult = BuildMatchResultPayload(room);
@@ -642,6 +667,13 @@ public sealed class SpikeServerHost
                                             .Select(row => $"{row.PlayerName} · W{row.Wins} D{row.Draws} L{row.Losses} · Best {row.BestScore}")
                                             .ToArray();
                                     }
+                                    shouldBroadcast = true;
+                                    messageType = "room_state_changed";
+                                }
+                                break;
+                            case SpikeRoomState.ResultsReady:
+                                if (room.Members.Count == 0 && _roomRegistry.TryResetEmptyCompletedResultRoom(room))
+                                {
                                     shouldBroadcast = true;
                                     messageType = "room_state_changed";
                                 }
@@ -698,6 +730,45 @@ public sealed class SpikeServerHost
         }
     }
 
+    private (string PreviousRoomCode, SpikeRoom? AffectedRoom, bool SuppressMemberRemovedSnapshot) RemoveSessionFromCurrentRoom(ClientSession session, bool endActiveRoomAsForfeit)
+    {
+        var roomBeforeRemoval = _roomRegistry.FindRoom(session);
+        var previousRoomCode = roomBeforeRemoval?.RoomCode ?? session.RoomCode;
+        var suppressMemberRemovedSnapshot = roomBeforeRemoval is not null && IsResultState(roomBeforeRemoval.State);
+
+        if (endActiveRoomAsForfeit && roomBeforeRemoval is not null)
+        {
+            lock (_roomRegistry.SyncRoot)
+            {
+                if (roomBeforeRemoval.State == SpikeRoomState.Active)
+                {
+                    MarkRoomEnded(roomBeforeRemoval, "DisconnectForfeit", session.PlayerName);
+                }
+            }
+        }
+
+        var affectedRoom = _roomRegistry.Remove(session);
+        if (affectedRoom is not null)
+        {
+            ApplyDisconnectStateTransition(affectedRoom);
+        }
+
+        return (previousRoomCode, affectedRoom, suppressMemberRemovedSnapshot);
+    }
+
+    private Task SendRoomLeftAsync(ClientSession session, string previousRoomCode, string detail, CancellationToken cancellationToken) =>
+        LengthPrefixedProtocol.WriteAsync(session.Stream, new ServerMessage
+        {
+            Type = "room_left",
+            SessionId = session.SessionId,
+            RoomCode = previousRoomCode,
+            Detail = detail,
+            RoomListings = _roomRegistry.SnapshotRoomListings(_config.MaxPlayersPerRoom),
+            ServerSentAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            LastProcessedClientTick = session.LastProcessedTick,
+            HeartbeatAgeSeconds = Math.Max(0f, (float)(DateTimeOffset.UtcNow - session.LastSeenUtc).TotalSeconds)
+        }, cancellationToken);
+
     private void ApplyDisconnectStateTransition(SpikeRoom room)
     {
         lock (_roomRegistry.SyncRoot)
@@ -718,6 +789,11 @@ public sealed class SpikeServerHost
             }
         }
     }
+
+    private static bool IsResultState(SpikeRoomState state) =>
+        state == SpikeRoomState.Ended ||
+        state == SpikeRoomState.Saving ||
+        state == SpikeRoomState.ResultsReady;
 
     private async Task BroadcastRoomAsync(SpikeRoom room, string messageType, CancellationToken cancellationToken, bool includeDetail = true)
     {
@@ -749,10 +825,15 @@ public sealed class SpikeServerHost
             snapshotSequence = room.SnapshotSequence;
             roomCode = room.RoomCode;
             roomState = room.State.ToString();
-            hostSessionId = room.HostSessionId;
-            hostPlayerName = room.Members.FirstOrDefault(member => string.Equals(member.SessionId, room.HostSessionId, StringComparison.Ordinal))?.PlayerName ?? string.Empty;
-            playerCount = room.Members.Count;
-            readyPlayers = room.ReadyBySessionId.Values.Count(v => v);
+            var frozenResultSnapshot = IsResultState(room.State)
+                ? room.FrozenResultSnapshot ??= FreezeResultSnapshot(room)
+                : null;
+            hostSessionId = frozenResultSnapshot?.HostSessionId ?? room.HostSessionId;
+            hostPlayerName = frozenResultSnapshot?.HostPlayerName ??
+                             room.Members.FirstOrDefault(member => string.Equals(member.SessionId, room.HostSessionId, StringComparison.Ordinal))?.PlayerName ??
+                             string.Empty;
+            playerCount = frozenResultSnapshot?.PlayerCount ?? room.Members.Count;
+            readyPlayers = frozenResultSnapshot?.ReadyPlayers ?? room.ReadyBySessionId.Values.Count(v => v);
             countdownRemaining = room.State == SpikeRoomState.Countdown
                 ? Math.Max(0f, (float)(room.CountdownEndsUtc - DateTimeOffset.UtcNow).TotalSeconds)
                 : 0f;
@@ -761,8 +842,8 @@ public sealed class SpikeServerHost
                 : 0f;
             endReason = room.EndReason;
             persistenceStatus = room.PersistenceStatus;
-            members = room.Members.Select(member => member.PlayerName).ToArray();
-            readyMembers = room.Members
+            members = frozenResultSnapshot?.Members ?? room.Members.Select(member => member.PlayerName).ToArray();
+            readyMembers = frozenResultSnapshot?.ReadyMembers ?? room.Members
                 .Where(member => room.ReadyBySessionId.GetValueOrDefault(member.SessionId))
                 .Select(member => member.PlayerName)
                 .ToArray();
@@ -779,17 +860,17 @@ public sealed class SpikeServerHost
                 .OrderBy(pair => pair.Key)
                 .Select(pair => FormattableString.Invariant($"{pair.Key}:{pair.Value.X:0.00}:{pair.Value.Y:0.00}"))
                 .ToArray();
-            scoreboard = room.Members
+            scoreboard = frozenResultSnapshot?.Scoreboard ?? room.Members
                 .Select(member => $"{member.PlayerName}:{room.ScoreBySessionId.GetValueOrDefault(member.SessionId, 0)}")
                 .ToArray();
-            effectStates = room.Members
+            effectStates = frozenResultSnapshot?.EffectStates ?? room.Members
                 .Select(member =>
                 {
                     var effect = room.EffectsBySessionId.GetValueOrDefault(member.SessionId) ?? new PlayerEffectState();
                     return $"{member.PlayerName}:{effect.MoveMultiplier:0.00}:{effect.Source}:{Math.Max(0f, (float)(effect.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds):0.00}:{Math.Max(0f, (float)(effect.ImmuneUntilUtc - DateTimeOffset.UtcNow).TotalSeconds):0.00}";
                 })
                 .ToArray();
-            playerPositions = room.Members
+            playerPositions = frozenResultSnapshot?.PlayerPositions ?? room.Members
                 .Select(member =>
                 {
                     var position = room.PlayerPositionsBySessionId.GetValueOrDefault(member.SessionId);
@@ -878,6 +959,7 @@ public sealed class SpikeServerHost
         room.PersistenceStatus = string.Empty;
         room.PersistenceDetail = string.Empty;
         room.LeaderboardRows = [];
+        room.FrozenResultSnapshot = null;
         room.ForfeitingPlayerName = string.Empty;
         for (var index = 0; index < room.Members.Count; index++)
         {
@@ -1324,7 +1406,43 @@ public sealed class SpikeServerHost
         room.StateEnteredUtc = DateTimeOffset.UtcNow;
         room.EndReason = endReason;
         room.ForfeitingPlayerName = forfeitingPlayerName ?? string.Empty;
+        room.FrozenResultSnapshot = FreezeResultSnapshot(room);
         room.PendingMatchResult = BuildMatchResultPayload(room);
+    }
+
+    private static FrozenResultRoomSnapshot FreezeResultSnapshot(SpikeRoom room)
+    {
+        var nowUtc = DateTimeOffset.UtcNow;
+        var frozenMembers = room.Members.ToArray();
+        var hostPlayerName = frozenMembers.FirstOrDefault(member => string.Equals(member.SessionId, room.HostSessionId, StringComparison.Ordinal))?.PlayerName ?? string.Empty;
+
+        return new FrozenResultRoomSnapshot(
+            room.HostSessionId,
+            hostPlayerName,
+            frozenMembers.Length,
+            frozenMembers.Count(member => room.ReadyBySessionId.GetValueOrDefault(member.SessionId)),
+            frozenMembers.Select(member => member.PlayerName).ToArray(),
+            frozenMembers
+                .Where(member => room.ReadyBySessionId.GetValueOrDefault(member.SessionId))
+                .Select(member => member.PlayerName)
+                .ToArray(),
+            frozenMembers
+                .Select(member => $"{member.PlayerName}:{room.ScoreBySessionId.GetValueOrDefault(member.SessionId, 0)}")
+                .ToArray(),
+            frozenMembers
+                .Select(member =>
+                {
+                    var effect = room.EffectsBySessionId.GetValueOrDefault(member.SessionId) ?? new PlayerEffectState();
+                    return $"{member.PlayerName}:{effect.MoveMultiplier:0.00}:{effect.Source}:{Math.Max(0f, (float)(effect.ExpiresAtUtc - nowUtc).TotalSeconds):0.00}:{Math.Max(0f, (float)(effect.ImmuneUntilUtc - nowUtc).TotalSeconds):0.00}";
+                })
+                .ToArray(),
+            frozenMembers
+                .Select(member =>
+                {
+                    var position = room.PlayerPositionsBySessionId.GetValueOrDefault(member.SessionId);
+                    return FormattableString.Invariant($"{member.PlayerName}:{position.X:0.00}:{position.Y:0.00}");
+                })
+                .ToArray());
     }
 
     private MatchResultPayload BuildMatchResultPayload(SpikeRoom room)

@@ -24,6 +24,7 @@ namespace BatteryRushArena.NetworkSpike
         private const float AbilityPillWidth = 94f;
         private const float AbilityPillHeight = 22f;
         private const float CameraFollowSpeed = 6f;
+        private const float ReturnToLobbyAckTimeoutSeconds = 5f;
         private const float ToolkitMargin = 16f;
         private const float ToolkitCardWidth = 220f;
         private const float ToolkitCardHeight = 72f;
@@ -54,6 +55,7 @@ namespace BatteryRushArena.NetworkSpike
         private bool _autoHeartbeat = true;
         private bool _readyRequested;
         private bool _autoConnectAttempted;
+        private TaskCompletionSource<SpikeServerMessage> _pendingReturnToLobbyCompletion;
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
         private int[] _activeBatteryIds = Array.Empty<int>();
         private GUIStyle _overlayTitleStyle;
@@ -113,6 +115,7 @@ namespace BatteryRushArena.NetworkSpike
             _client = new NetworkSpikeClient(_config);
             _client.LogEmitted += AppendLog;
             _client.MessageReceived += OnMessageReceived;
+            _client.ConnectionClosed += OnClientConnectionClosed;
             EnsureScenePresentation();
             EnsureUiToolkitOverlay();
             ConfigureCamera();
@@ -192,7 +195,11 @@ namespace BatteryRushArena.NetworkSpike
         private void OnDestroy()
         {
             if (_lifetimeCts != null) _lifetimeCts.Cancel();
-            if (_client != null) _client.Dispose();
+            if (_client != null)
+            {
+                _client.ConnectionClosed -= OnClientConnectionClosed;
+                _client.Dispose();
+            }
             if (_lifetimeCts != null) _lifetimeCts.Dispose();
             if (_sceneRoot != null)
             {
@@ -377,15 +384,40 @@ namespace BatteryRushArena.NetworkSpike
                 _playerName = message.Detail;
             }
 
+            if (string.Equals(message.Type, "room_left", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastServerMessage = BuildLobbyBaselineMessage(message);
+                _roomCode = string.Empty;
+                _pendingReturnToLobbyCompletion?.TrySetResult(message);
+                RefreshPresentationSnapshot(_lastServerMessage);
+                SyncScenePresentation();
+                RefreshUiToolkitOverlay();
+                return;
+            }
+
             _lastServerMessage = MergeServerMessage(_lastServerMessage, message);
             if (!string.IsNullOrWhiteSpace(message.RoomCode))
             {
                 _roomCode = message.RoomCode;
             }
 
+            if (string.Equals(message.Type, "error", StringComparison.OrdinalIgnoreCase) &&
+                     _pendingReturnToLobbyCompletion != null)
+            {
+                var errorText = string.IsNullOrWhiteSpace(message.Error) ? "unknown_error" : message.Error;
+                var detailText = string.IsNullOrWhiteSpace(message.Detail) ? string.Empty : $" ({message.Detail})";
+                _pendingReturnToLobbyCompletion.TrySetException(new InvalidOperationException(errorText + detailText));
+            }
+
             RefreshPresentationSnapshot(_lastServerMessage);
             SyncScenePresentation();
             RefreshUiToolkitOverlay();
+        }
+
+        private void OnClientConnectionClosed()
+        {
+            _pendingReturnToLobbyCompletion?.TrySetException(
+                new InvalidOperationException("Connection closed before return-to-lobby was acknowledged."));
         }
 
         private static SpikeServerMessage MergeServerMessage(SpikeServerMessage current, SpikeServerMessage incoming)
@@ -1692,32 +1724,96 @@ namespace BatteryRushArena.NetworkSpike
 
         private async Task ReturnToLobbyFromUiAsync()
         {
-            if (_client != null && _client.IsConnected)
+            if (_client == null)
             {
-                _client.Disconnect();
+                return;
             }
 
-            ResetTransientSessionView();
+            if (_pendingReturnToLobbyCompletion != null && !_pendingReturnToLobbyCompletion.Task.IsCompleted)
+            {
+                AppendLog("Return to lobby already in progress.");
+                return;
+            }
+
+            TaskCompletionSource<SpikeServerMessage> pendingCompletion = null;
 
             try
             {
-                await EnsureConnectedFromUiAsync();
+                if (!_client.IsConnected)
+                {
+                    ResetTransientSessionView();
+                    await EnsureConnectedFromUiAsync();
+                    AppendLog("Returned to lobby.");
+                    return;
+                }
+
+                pendingCompletion = new TaskCompletionSource<SpikeServerMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pendingReturnToLobbyCompletion = pendingCompletion;
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(GetLifetimeToken());
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(ReturnToLobbyAckTimeoutSeconds));
+                using var cancellationRegistration = timeoutCts.Token.Register(() => pendingCompletion.TrySetCanceled(timeoutCts.Token));
+
+                await _client.LeaveRoomAsync(GetLifetimeToken());
+                SpikeServerMessage leaveResponse;
+                try
+                {
+                    leaveResponse = await pendingCompletion.Task;
+                }
+                catch (OperationCanceledException) when (GetLifetimeToken().IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new TimeoutException($"Timed out waiting for return-to-lobby acknowledgement after {ReturnToLobbyAckTimeoutSeconds:0.#}s.");
+                }
+
+                ResetTransientSessionView(BuildLobbyBaselineMessage(leaveResponse));
                 AppendLog("Returned to lobby.");
             }
             catch (Exception ex)
             {
                 AppendLog($"Return to lobby failed: {ex.Message}");
             }
+            finally
+            {
+                if (ReferenceEquals(_pendingReturnToLobbyCompletion, pendingCompletion))
+                {
+                    _pendingReturnToLobbyCompletion = null;
+                }
+            }
         }
 
         private CancellationToken GetLifetimeToken() =>
             _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None;
 
-        private void ResetTransientSessionView()
+        private static SpikeServerMessage BuildLobbyBaselineMessage(SpikeServerMessage message)
+        {
+            if (message == null)
+            {
+                return new SpikeServerMessage();
+            }
+
+            return new SpikeServerMessage
+            {
+                Type = message.Type,
+                RoomCode = string.Empty,
+                SessionId = message.SessionId,
+                Detail = message.Detail,
+                RoomState = string.Empty,
+                RoomListings = message.RoomListings ?? Array.Empty<string>(),
+                ServerSentAtUnixMs = message.ServerSentAtUnixMs,
+                ClientSentAtUnixMs = message.ClientSentAtUnixMs,
+                LastProcessedClientTick = message.LastProcessedClientTick,
+                HeartbeatAgeSeconds = message.HeartbeatAgeSeconds
+            };
+        }
+
+        private void ResetTransientSessionView(SpikeServerMessage baselineMessage = null)
         {
             _roomCode = string.Empty;
             _readyRequested = false;
-            _lastServerMessage = new SpikeServerMessage();
+            _lastServerMessage = baselineMessage ?? new SpikeServerMessage();
             _activeBatteryIds = Array.Empty<int>();
             _batteryPositionsById.Clear();
             _trapPositionsById.Clear();
@@ -1729,6 +1825,7 @@ namespace BatteryRushArena.NetworkSpike
         private static bool MessageCarriesRoomListings(string messageType) =>
             string.Equals(messageType, "hello_accepted", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(messageType, "room_joined", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(messageType, "room_left", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(messageType, "heartbeat_ack", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(messageType, "room_listings_updated", StringComparison.OrdinalIgnoreCase);
 
