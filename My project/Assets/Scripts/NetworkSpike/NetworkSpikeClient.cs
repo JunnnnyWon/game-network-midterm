@@ -303,6 +303,14 @@ namespace BatteryRushArena.NetworkSpike
             }
             catch (Exception ex)
             {
+                if (ex is IOException ioException &&
+                    (ioException.Message.IndexOf("aborted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     ioException.Message.IndexOf("disposed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     ioException.Message.IndexOf("closed", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    return;
+                }
+
                 DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop crashed: {ex.GetType().Name}: {ex.Message}"));
             }
             finally
