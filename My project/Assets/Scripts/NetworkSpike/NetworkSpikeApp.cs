@@ -55,6 +55,7 @@ namespace BatteryRushArena.NetworkSpike
         private bool _autoHeartbeat = true;
         private bool _readyRequested;
         private bool _autoConnectAttempted;
+        private bool _autoReconnectInFlight;
         private TaskCompletionSource<SpikeServerMessage> _pendingReturnToLobbyCompletion;
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
         private int[] _activeBatteryIds = Array.Empty<int>();
@@ -419,6 +420,41 @@ namespace BatteryRushArena.NetworkSpike
         {
             _pendingReturnToLobbyCompletion?.TrySetException(
                 new InvalidOperationException("Connection closed before return-to-lobby was acknowledged."));
+
+            if (_autoReconnectInFlight || GetLifetimeToken().IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (_pendingReturnToLobbyCompletion != null || !IsAnyRoomState("Active", "Countdown"))
+            {
+                _ = ReconnectAfterUnexpectedDisconnectAsync();
+            }
+        }
+
+        private async Task ReconnectAfterUnexpectedDisconnectAsync()
+        {
+            if (_autoReconnectInFlight)
+            {
+                return;
+            }
+
+            _autoReconnectInFlight = true;
+
+            try
+            {
+                ResetTransientSessionView();
+                await EnsureConnectedFromUiAsync();
+                AppendLog("Connection restored.");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Auto-reconnect failed: {ex.Message}");
+            }
+            finally
+            {
+                _autoReconnectInFlight = false;
+            }
         }
 
         private static SpikeServerMessage MergeServerMessage(SpikeServerMessage current, SpikeServerMessage incoming)
