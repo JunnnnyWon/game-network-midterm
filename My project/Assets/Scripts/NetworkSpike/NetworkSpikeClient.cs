@@ -289,17 +289,29 @@ namespace BatteryRushArena.NetworkSpike
                     DispatchToMainThread(() => LogEmitted?.Invoke($"Server[{message.Type}] {message.Detail} {message.Error}".Trim()));
                 }
             }
-            catch (Exception ex) when (ex is SocketException || ex is InvalidDataException || ex is OperationCanceledException)
+            catch (Exception ex) when (ex is SocketException || ex is InvalidDataException || ex is OperationCanceledException || ex is IOException)
             {
-                if (!(ex is OperationCanceledException))
+                if (ex is OperationCanceledException || cancellationToken.IsCancellationRequested)
                 {
-                    var isInterruptedIo = ex is IOException ioException &&
-                                          ioException.Message.IndexOf("interrupted", StringComparison.OrdinalIgnoreCase) >= 0;
-                    if (!isInterruptedIo)
+                    return;
+                }
+
+                if (ex is IOException ioException)
+                {
+                    var isExpectedDisconnect =
+                        ioException.Message.IndexOf("interrupted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("aborted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("취소", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("스레드 종료", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    if (isExpectedDisconnect)
                     {
-                        DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
+                        return;
                     }
                 }
+
+                DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
             }
             catch (Exception ex)
             {
