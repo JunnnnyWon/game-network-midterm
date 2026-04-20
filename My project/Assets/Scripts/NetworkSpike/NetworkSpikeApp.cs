@@ -56,7 +56,6 @@ namespace BatteryRushArena.NetworkSpike
         private bool _readyRequested;
         private bool _autoConnectAttempted;
         private bool _autoReconnectInFlight;
-        private bool _intentionalReconnectInFlight;
         private TaskCompletionSource<SpikeServerMessage> _pendingReturnToLobbyCompletion;
         private SpikeServerMessage _lastServerMessage = new SpikeServerMessage();
         private int[] _activeBatteryIds = Array.Empty<int>();
@@ -381,7 +380,13 @@ namespace BatteryRushArena.NetworkSpike
 
             if (string.Equals(message.Type, "room_left", StringComparison.OrdinalIgnoreCase))
             {
+                _lastServerMessage = BuildLobbyBaselineMessage(message);
+                _roomCode = string.Empty;
+                _readyRequested = false;
                 _pendingReturnToLobbyCompletion?.TrySetResult(message);
+                RefreshPresentationSnapshot(_lastServerMessage);
+                SyncScenePresentation();
+                RefreshUiToolkitOverlay();
                 return;
             }
 
@@ -409,7 +414,7 @@ namespace BatteryRushArena.NetworkSpike
             _pendingReturnToLobbyCompletion?.TrySetException(
                 new InvalidOperationException("Connection closed before return-to-lobby was acknowledged."));
 
-            if (_autoReconnectInFlight || _intentionalReconnectInFlight || GetLifetimeToken().IsCancellationRequested)
+            if (_autoReconnectInFlight || GetLifetimeToken().IsCancellationRequested)
             {
                 return;
             }
@@ -1794,11 +1799,6 @@ namespace BatteryRushArena.NetworkSpike
                     throw new TimeoutException($"Timed out waiting for return-to-lobby acknowledgement after {ReturnToLobbyAckTimeoutSeconds:0.#}s.");
                 }
 
-                _intentionalReconnectInFlight = true;
-                DisposeClient();
-                ResetTransientSessionView();
-                RecreateClient();
-                await EnsureConnectedFromUiAsync();
                 AppendLog("Returned to lobby.");
             }
             catch (Exception ex)
@@ -1811,8 +1811,6 @@ namespace BatteryRushArena.NetworkSpike
                 {
                     _pendingReturnToLobbyCompletion = null;
                 }
-
-                _intentionalReconnectInFlight = false;
             }
         }
 
