@@ -1,46 +1,22 @@
-# Codex Game Studios — Codex/OMX Runtime Contract
+# 게임네트워크기초중간 작업 안내
 
-This repository originated as a Claude Code-first studio template. In Codex, the
-**active runtime surfaces are `AGENTS.md`, `.codex/skills/`, and `.codex/agents/`**.
-Treat `.claude/` as upstream/source material and migration reference unless a file
-explicitly says otherwise.
+이 저장소는 네트워크 프로그래밍 중간 프로젝트 전용 저장소입니다.
 
-## Primary goals
-- Preserve **workflow parity** with the original studio system.
-- Preserve substantial **command / structure parity** where practical.
-- Prefer **Codex-native correctness** whenever literal Claude compatibility would break usability.
+## 실제 작업 위치
 
-## Active Codex surfaces
-- `AGENTS.md` (this file) — root runtime contract for Codex work
-- `.codex/skills/` — Codex-native or compatibility-draft workflow skills
-- `.codex/agents/` — Codex-native project agents derived from the original studio roles
-- `.codex/docs/runtime-contract.md` — canonical mapping from Claude-only primitives to Codex/OMX equivalents
-- `.codex/docs/source-surface-mapping.md` — source-to-target conversion inventory
+- Unity 클라이언트: `My project/`
+- 외부 C# 서버: `src/NetworkSpikeServer/`
+- MySQL 초기 스키마: `docker/mysql/init/001-ckgame.sql`
 
-## Runtime mapping rules
-- `CLAUDE.md` guidance becomes `AGENTS.md` guidance.
-- `.claude/skills/*` map to `.codex/skills/*`.
-- `.claude/agents/*` map to `.codex/agents/*`.
-- `AskUserQuestion` maps to:
-  1. `request_user_input` when available, otherwise
-  2. one concise plain-text question at a time.
-- Claude `Task` subagent orchestration maps to Codex native subagents and/or OMX workflow routing.
-- Claude hook lifecycle expectations map to AGENTS rules, OMX state/memory, and explicit verification scripts/docs.
+## 작업 원칙
 
-## Working rules
-- Keep `.claude/` intact as source reference during the rebuild unless the task explicitly targets Claude surfaces.
-- Prefer updating the Codex-native layer first: `AGENTS.md`, `.codex/skills`, `.codex/agents`, Codex docs, README.
-- When a Claude instruction conflicts with Codex-native operation, preserve the **user-visible workflow** rather than the literal primitive.
-- For interactive flows, ask only one question at a time.
-- For broad work, maintain artifact-first progress: write plans/docs/mappings so the repo stays resumable.
+- Unity는 저장소 루트가 아니라 `My project/`를 엽니다.
+- 게임 로직과 DB 접근은 서버 중심 구조를 유지합니다.
+- Unity 클라이언트는 입력과 화면 표시를 담당하고, MySQL에 직접 연결하지 않습니다.
+- 윈도우 실행 절차는 `README.md`와 `docs/windows-demo-deployment.md`를 우선 기준으로 봅니다.
 
-## Release-gate skills
-The current Codex release gate focuses on these five skills:
-- `start`
-- `brainstorm`
-- `setup-engine`
-- `design-system`
-- `create-architecture`
+## Git 주의사항
 
-## Documentation gate
-A release is not ready unless a new user can read the README and reach the five release-gate skills without hidden setup knowledge.
+- `Library/`, `Logs/`, `UserSettings/`, `tmp/`, `outputs/` 같은 로컬 산출물은 추적하지 않습니다.
+- 루트에 잘못 생성된 `Assets/`, `Packages/`, `ProjectSettings/`는 이 저장소의 실제 프로젝트가 아닙니다.
+- 실제 Unity 프로젝트 자산은 `My project/Assets`, `My project/Packages`, `My project/ProjectSettings` 아래에 있습니다.

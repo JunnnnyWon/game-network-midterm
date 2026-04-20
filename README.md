@@ -8,6 +8,7 @@
 - 서버는 `src/NetworkSpikeServer/` 에 있습니다.
 - DB 초기화 스크립트는 `docker/mysql/init/` 에 있습니다.
 - 로컬 캐시와 발표 산출물은 Git 추적 대상에서 제외합니다.
+- Codex 템플릿 자산은 별도 저장소 [Codex-Game-Studios](https://github.com/JunnnnyWon/Codex-Game-Studios) 로 분리되었습니다.
 
 중요:
 
