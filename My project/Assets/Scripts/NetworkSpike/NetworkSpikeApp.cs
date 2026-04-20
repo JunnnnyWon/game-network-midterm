@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -413,6 +414,11 @@ namespace BatteryRushArena.NetworkSpike
         {
             _pendingReturnToLobbyCompletion?.TrySetException(
                 new InvalidOperationException("Connection closed before return-to-lobby was acknowledged."));
+
+            if (_pendingReturnToLobbyCompletion != null)
+            {
+                return;
+            }
 
             if (_autoReconnectInFlight || GetLifetimeToken().IsCancellationRequested)
             {
@@ -1801,6 +1807,11 @@ namespace BatteryRushArena.NetworkSpike
 
                 AppendLog("Returned to lobby.");
             }
+            catch (Exception ex) when (IsRecoverableReturnToLobbyFailure(ex))
+            {
+                await RecoverLobbyConnectionAsync();
+                AppendLog("Returned to lobby.");
+            }
             catch (Exception ex)
             {
                 AppendLog($"Return to lobby failed: {ex.Message}");
@@ -1816,6 +1827,20 @@ namespace BatteryRushArena.NetworkSpike
 
         private CancellationToken GetLifetimeToken() =>
             _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None;
+
+        private async Task RecoverLobbyConnectionAsync()
+        {
+            DisposeClient();
+            ResetTransientSessionView();
+            RecreateClient();
+            await EnsureConnectedFromUiAsync();
+        }
+
+        private static bool IsRecoverableReturnToLobbyFailure(Exception exception) =>
+            exception is IOException ||
+            exception is ObjectDisposedException ||
+            exception is TimeoutException ||
+            exception is InvalidOperationException;
 
         private void RecreateClient()
         {
