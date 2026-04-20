@@ -15,7 +15,7 @@
 
 ### Unity 클라이언트
 
-- 경로: `My project/`
+- 경로: `unity_midterm/`
 - Unity 버전: `6000.3.10f1`
 - 기본 빌드 씬: `Assets/Scenes/SampleScene.unity`
 - 네트워크 기본값: `127.0.0.1:7777`
@@ -135,7 +135,7 @@ $env:MYSQL_PASSWORD="ckgame_pass"
 
 ## 6. Unity 클라이언트 Windows 빌드
 
-Unity에서 `My project`를 연 뒤:
+Unity에서 `unity_midterm`를 연 뒤:
 
 1. `File > Build Profiles` 또는 `File > Build Settings`
 2. 플랫폼을 `Windows, Mac, Linux`로 선택

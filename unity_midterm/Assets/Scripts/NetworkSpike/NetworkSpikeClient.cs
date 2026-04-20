@@ -57,6 +57,8 @@ namespace BatteryRushArena.NetworkSpike
 
         public event Action<string> LogEmitted;
 
+        public event Action ConnectionClosed;
+
         public bool IsConnected => _sessionEstablished;
 
         public string ConnectedPlayerName => _connectedPlayerName;
@@ -133,8 +135,11 @@ namespace BatteryRushArena.NetworkSpike
             _sessionEstablished = true;
             _connectedPlayerName = string.IsNullOrWhiteSpace(helloResponse.Detail) ? playerName : helloResponse.Detail;
             _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
-            _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(_readerCts.Token), _readerCts.Token);
+            var connectionCts = _readerCts;
+            var connectionClient = _tcpClient;
+            var connectionStream = _stream;
+            _readerTask = Task.Run(() => ReadLoopAsync(connectionCts, connectionClient, connectionStream, connectionCts.Token), connectionCts.Token);
+            _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(connectionCts.Token), connectionCts.Token);
             LogEmitted?.Invoke($"Connected to {_config.Host}:{_config.Port}, handshake sent.");
         }
 
@@ -166,6 +171,13 @@ namespace BatteryRushArena.NetworkSpike
             {
                 Type = "start_match",
                 StartRequested = true,
+                ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
+            }, cancellationToken);
+
+        public Task LeaveRoomAsync(CancellationToken cancellationToken = default) =>
+            SendAsync(new SpikeClientMessage
+            {
+                Type = "leave_room",
                 ClientSentAtUnixMs = _clock().ToUnixTimeMilliseconds()
             }, cancellationToken);
 
@@ -255,9 +267,9 @@ namespace BatteryRushArena.NetworkSpike
             }
         }
 
-        private async Task ReadLoopAsync(CancellationToken cancellationToken)
+        private async Task ReadLoopAsync(CancellationTokenSource ownerCts, TcpClient ownerClient, NetworkStream ownerStream, CancellationToken cancellationToken)
         {
-            if (_stream == null)
+            if (ownerStream == null)
             {
                 return;
             }
@@ -266,7 +278,7 @@ namespace BatteryRushArena.NetworkSpike
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var message = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(_stream, cancellationToken);
+                    var message = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(ownerStream, cancellationToken);
                     if (message == null)
                     {
                         break;
@@ -277,26 +289,58 @@ namespace BatteryRushArena.NetworkSpike
                     DispatchToMainThread(() => LogEmitted?.Invoke($"Server[{message.Type}] {message.Detail} {message.Error}".Trim()));
                 }
             }
-            catch (Exception ex) when (ex is SocketException || ex is InvalidDataException || ex is OperationCanceledException)
+            catch (Exception ex) when (ex is SocketException || ex is InvalidDataException || ex is OperationCanceledException || ex is IOException)
             {
-                if (!(ex is OperationCanceledException))
+                if (ex is OperationCanceledException || cancellationToken.IsCancellationRequested)
                 {
-                    var isInterruptedIo = ex is IOException ioException &&
-                                          ioException.Message.IndexOf("interrupted", StringComparison.OrdinalIgnoreCase) >= 0;
-                    if (!isInterruptedIo)
+                    return;
+                }
+
+                if (ex is IOException ioException)
+                {
+                    var isExpectedDisconnect =
+                        ioException.Message.IndexOf("interrupted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("aborted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("취소", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ioException.Message.IndexOf("스레드 종료", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    if (isExpectedDisconnect)
                     {
-                        DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
+                        return;
                     }
                 }
+
+                DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop stopped: {ex.Message}"));
             }
             catch (Exception ex)
             {
+                if (ex is IOException ioException &&
+                    (ioException.Message.IndexOf("aborted", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     ioException.Message.IndexOf("disposed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     ioException.Message.IndexOf("closed", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    return;
+                }
+
                 DispatchToMainThread(() => LogEmitted?.Invoke($"Read loop crashed: {ex.GetType().Name}: {ex.Message}"));
             }
             finally
             {
-                ResetConnectionState();
+                ResetConnectionStateIfCurrent(ownerCts, ownerClient, ownerStream);
             }
+        }
+
+        private void ResetConnectionStateIfCurrent(CancellationTokenSource ownerCts, TcpClient ownerClient, NetworkStream ownerStream)
+        {
+            if (!ReferenceEquals(_readerCts, ownerCts) ||
+                !ReferenceEquals(_tcpClient, ownerClient) ||
+                !ReferenceEquals(_stream, ownerStream))
+            {
+                return;
+            }
+
+            ResetConnectionState();
         }
 
         private void DispatchToMainThread(Action action)
@@ -349,6 +393,8 @@ namespace BatteryRushArena.NetworkSpike
 
         private void ResetConnectionState()
         {
+            var shouldNotifyConnectionClosed = _stream != null || _tcpClient != null || _sessionEstablished;
+
             try
             {
                 _readerCts?.Cancel();
@@ -396,6 +442,11 @@ namespace BatteryRushArena.NetworkSpike
             _lastAckedClientTick = 0;
             _messagesReceivedCount = 0;
             _lastMessageType = string.Empty;
+
+            if (shouldNotifyConnectionClosed)
+            {
+                DispatchToMainThread(() => ConnectionClosed?.Invoke());
+            }
         }
     }
 }

@@ -4,7 +4,7 @@
 
 ## 실제로 작업할 폴더
 
-### `My project/`
+### `unity_midterm/`
 
 Unity 클라이언트 프로젝트 루트입니다.
 
@@ -16,7 +16,7 @@ Unity 클라이언트 프로젝트 루트입니다.
 
 주의:
 
-- 저장소 루트가 아니라 `My project/` 를 Unity에서 열어야 합니다.
+- 저장소 루트가 아니라 `unity_midterm/` 를 Unity에서 열어야 합니다.
 
 ### `src/NetworkSpikeServer/`
 
@@ -60,8 +60,8 @@ MySQL 초기화 및 빠른 로컬 실행용입니다.
 아래 항목은 clone 이후 로컬에서 다시 생겨도 정상입니다.
 
 - 루트의 `Library/`, `Logs/`, `UserSettings/`
-- `My project/Library/`
-- `My project/UserSettings/`
+- `unity_midterm/Library/`
+- `unity_midterm/UserSettings/`
 - `src/NetworkSpikeServer/bin/`
 - `src/NetworkSpikeServer/obj/`
 - `tmp/`
@@ -73,6 +73,6 @@ MySQL 초기화 및 빠른 로컬 실행용입니다.
 1. 저장소 clone
 2. MySQL 또는 Docker MySQL 준비
 3. `dotnet run --project .\src\NetworkSpikeServer`
-4. Unity Hub에서 `My project/` 열기
+4. Unity Hub에서 `unity_midterm/` 열기
 5. `Assets/Scenes/SampleScene.unity` 열기
 6. Play 또는 Windows 빌드 실행

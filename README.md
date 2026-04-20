@@ -4,7 +4,7 @@
 
 이 저장소는 윈도우에서 빠르게 내려받아 이어서 구현하거나 발표할 수 있도록 다음 기준으로 정리되어 있습니다.
 
-- Unity 프로젝트는 저장소 루트가 아니라 `My project/` 입니다.
+- Unity 프로젝트는 저장소 루트가 아니라 `unity_midterm/` 입니다.
 - 서버는 `src/NetworkSpikeServer/` 에 있습니다.
 - DB 초기화 스크립트는 `docker/mysql/init/` 에 있습니다.
 - 로컬 캐시와 발표 산출물은 Git 추적 대상에서 제외합니다.
@@ -12,7 +12,7 @@
 
 중요:
 
-- Unity Hub에서는 저장소 루트가 아니라 `My project/` 폴더를 여세요.
+- Unity Hub에서는 저장소 루트가 아니라 `unity_midterm/` 폴더를 여세요.
 - 윈도우에서는 가능하면 `C:\dev\battery-rush-arena` 같은 짧은 ASCII 경로에 clone 하는 것을 권장합니다.
 
 ## 빠른 시작
@@ -30,7 +30,7 @@
 
 1. MySQL 실행
 2. 서버 실행
-3. Unity에서 `My project/` 열기
+3. Unity에서 `unity_midterm/` 열기
 4. `Assets/Scenes/SampleScene.unity` 열기
 5. Play 또는 Windows 빌드 실행
 
@@ -39,7 +39,7 @@
 ## 프로젝트 구조
 
 ```text
-My project/                 Unity 클라이언트 프로젝트
+unity_midterm/             Unity 클라이언트 프로젝트
 src/NetworkSpikeServer/     외부 C# 서버
 docker/mysql/init/          MySQL 초기 스키마
 docker-compose.mysql.yml    Docker 기반 MySQL 실행 설정
@@ -55,8 +55,8 @@ prototypes/                 초기 실험 및 리포트
 
 ### Unity 클라이언트
 
-- 경로: `My project/`
-- 주요 스크립트: `My project/Assets/Scripts/NetworkSpike/`
+- 경로: `unity_midterm/`
+- 주요 스크립트: `unity_midterm/Assets/Scripts/NetworkSpike/`
 - 역할:
   - 플레이어 입력 처리
   - 룸 생성/참가 UI
@@ -122,7 +122,7 @@ dotnet run --project .\src\NetworkSpikeServer
 
 ### Unity 실행
 
-Unity Hub에서 이 저장소를 연 뒤, 반드시 `My project/` 폴더를 프로젝트로 여세요.
+Unity Hub에서 이 저장소를 연 뒤, 반드시 `unity_midterm/` 폴더를 프로젝트로 여세요.
 
 - Unity 버전: `6000.3.10f1`
 - 시작 씬: `Assets/Scenes/SampleScene.unity`
