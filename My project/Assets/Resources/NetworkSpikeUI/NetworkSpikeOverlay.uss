@@ -152,6 +152,10 @@
     border-bottom-color: rgba(141, 198, 235, 0.28);
 }
 
+.action-button-compact-text {
+    font-size: 10px;
+}
+
 .action-button:hover {
     background-color: rgba(42, 63, 100, 0.98);
     unity-background-image-tint-color: rgba(42, 63, 100, 0.98);

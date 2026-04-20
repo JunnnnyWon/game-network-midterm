@@ -13,9 +13,9 @@
                 </ui:VisualElement>
 
                 <ui:VisualElement name="prematch-actions" class="button-row">
-                    <ui:Button name="connect-button" text="SYNC" class="action-button" />
-                    <ui:Button name="create-button" text="HOST MATCH" class="action-button action-button-primary" />
-                    <ui:Button name="join-button" text="ENTER ROOM" class="action-button" />
+                    <ui:Button name="connect-button" text="SYNC" class="action-button action-button-compact-text" />
+                    <ui:Button name="create-button" text="HOST MATCH" class="action-button action-button-primary action-button-compact-text" />
+                    <ui:Button name="join-button" text="ENTER ROOM" class="action-button action-button-compact-text" />
                 </ui:VisualElement>
 
                 <ui:VisualElement class="section-stack meta-stack">
