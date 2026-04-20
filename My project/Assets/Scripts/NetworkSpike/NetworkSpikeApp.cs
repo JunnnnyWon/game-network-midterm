@@ -114,10 +114,7 @@ namespace BatteryRushArena.NetworkSpike
         {
             _lifetimeCts = new CancellationTokenSource();
             EnsureDefaultPlayerName();
-            _client = new NetworkSpikeClient(_config);
-            _client.LogEmitted += AppendLog;
-            _client.MessageReceived += OnMessageReceived;
-            _client.ConnectionClosed += OnClientConnectionClosed;
+            RecreateClient();
             EnsureScenePresentation();
             EnsureUiToolkitOverlay();
             ConfigureCamera();
@@ -197,11 +194,7 @@ namespace BatteryRushArena.NetworkSpike
         private void OnDestroy()
         {
             if (_lifetimeCts != null) _lifetimeCts.Cancel();
-            if (_client != null)
-            {
-                _client.ConnectionClosed -= OnClientConnectionClosed;
-                _client.Dispose();
-            }
+            DisposeClient();
             if (_lifetimeCts != null) _lifetimeCts.Dispose();
             if (_sceneRoot != null)
             {
@@ -439,6 +432,7 @@ namespace BatteryRushArena.NetworkSpike
             try
             {
                 ResetTransientSessionView();
+                RecreateClient();
                 await EnsureConnectedFromUiAsync();
                 AppendLog("Connection restored.");
             }
@@ -1730,8 +1724,9 @@ namespace BatteryRushArena.NetworkSpike
                 }
 
                 AppendLog($"Reconnect required to apply player name change: {_client.ConnectedPlayerName} -> {_playerName}");
-                _client.Disconnect();
+                DisposeClient();
                 ResetTransientSessionView();
+                RecreateClient();
             }
 
             await _client.ConnectAndHandshakeAsync(_playerName, _protocolVersionOverride, GetLifetimeToken());
@@ -1800,8 +1795,9 @@ namespace BatteryRushArena.NetworkSpike
                 }
 
                 _intentionalReconnectInFlight = true;
-                _client.Disconnect();
+                DisposeClient();
                 ResetTransientSessionView();
+                RecreateClient();
                 await EnsureConnectedFromUiAsync();
                 AppendLog("Returned to lobby.");
             }
@@ -1822,6 +1818,29 @@ namespace BatteryRushArena.NetworkSpike
 
         private CancellationToken GetLifetimeToken() =>
             _lifetimeCts != null ? _lifetimeCts.Token : CancellationToken.None;
+
+        private void RecreateClient()
+        {
+            DisposeClient();
+            _client = new NetworkSpikeClient(_config);
+            _client.LogEmitted += AppendLog;
+            _client.MessageReceived += OnMessageReceived;
+            _client.ConnectionClosed += OnClientConnectionClosed;
+        }
+
+        private void DisposeClient()
+        {
+            if (_client == null)
+            {
+                return;
+            }
+
+            _client.LogEmitted -= AppendLog;
+            _client.MessageReceived -= OnMessageReceived;
+            _client.ConnectionClosed -= OnClientConnectionClosed;
+            _client.Dispose();
+            _client = null;
+        }
 
         private static SpikeServerMessage BuildLobbyBaselineMessage(SpikeServerMessage message)
         {
