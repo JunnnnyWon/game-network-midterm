@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battery Rush Arena 발표 대본</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --bg-soft: #111b2e;
+      --panel: rgba(17, 27, 46, 0.88);
+      --panel-strong: rgba(13, 21, 36, 0.96);
+      --text: #eef4ff;
+      --muted: #a9b9d3;
+      --line: rgba(120, 164, 224, 0.22);
+      --accent: #63c9ff;
+      --accent-soft: rgba(99, 201, 255, 0.18);
+      --warm: #ffd27a;
+      --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      --radius: 24px;
+      --content-width: 1180px;
+      --font-sans: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(69, 125, 224, 0.18), transparent 26rem),
+        radial-gradient(circle at top right, rgba(37, 196, 255, 0.14), transparent 20rem),
+        linear-gradient(180deg, #08111d 0%, #0d1727 42%, #09111d 100%);
+      line-height: 1.75;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      width: min(calc(100% - 32px), var(--content-width));
+      margin: 0 auto;
+      padding: 28px 0 56px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 34px 32px;
+      border: 1px solid var(--line);
+      border-radius: 32px;
+      background:
+        linear-gradient(135deg, rgba(12, 19, 33, 0.95), rgba(18, 31, 52, 0.88)),
+        var(--panel-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -4rem -4rem auto;
+      width: 18rem;
+      height: 18rem;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(99, 201, 255, 0.18), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #d9f3ff;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 12px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 58rem;
+      font-size: 1.02rem;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid rgba(120, 164, 224, 0.18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      color: #dce8fb;
+      font-size: 0.93rem;
+    }
+
+    .guide {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--warm);
+      border-radius: 18px;
+      background: rgba(255, 210, 122, 0.08);
+      color: #f9e8c1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+      margin-top: 26px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      padding: 22px 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .toc h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      color: #d8ecff;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .toc li + li {
+      margin-top: 10px;
+    }
+
+    .slides {
+      display: grid;
+      gap: 18px;
+    }
+
+    .slide {
+      padding: 24px 24px 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .slide-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .slide h2 {
+      margin: 0;
+      font-size: clamp(1.15rem, 2vw, 1.55rem);
+      line-height: 1.3;
+    }
+
+    .time {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(99, 201, 255, 0.11);
+      color: #d9f3ff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .slide p {
+      margin: 0;
+      color: #edf3ff;
+    }
+
+    .slide p + p,
+    .slide ul + p,
+    .slide p + ul {
+      margin-top: 12px;
+    }
+
+    .slide ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: #edf3ff;
+    }
+
+    .slide li + li {
+      margin-top: 8px;
+    }
+
+    .callout {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(99, 201, 255, 0.08);
+      color: #d9ecff;
+    }
+
+    .columns {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mini-card {
+      padding: 14px 15px;
+      border: 1px solid rgba(120, 164, 224, 0.14);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .mini-card strong {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #d8efff;
+    }
+
+    .footer-note {
+      margin-top: 22px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(calc(100% - 20px), var(--content-width));
+        padding-top: 14px;
+      }
+
+      .hero,
+      .slide,
+      .toc {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .columns {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-meta {
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="eyebrow">Battery Rush Arena Presentation Script</div>
+      <h1>Battery Rush Arena — 발표 대본</h1>
+      <p>게임네트워크기초 중간 프로젝트 발표용 스크립트를 읽기 쉬운 문서형 레이아웃으로 정리한 버전입니다. 발표 순서, 예상 시간, 핵심 기술 포인트를 한 화면에서 빠르게 확인할 수 있도록 구성했습니다.</p>
+      <div class="hero-meta">
+        <span class="chip">총 발표 시간: 약 10분</span>
+        <span class="chip">총 15개 슬라이드</span>
+        <span class="chip">권위 서버 + Unity + MySQL</span>
+      </div>
+      <div class="guide">
+        <strong>읽기 속도 가이드</strong><br>
+        한국어 프레젠테이션 기준 분당 약 250자입니다. 각 슬라이드에는 예상 시간을 붙였고, 굵게 표시된 부분은 발표할 때 조금 더 천천히 또렷하게 읽는 구간입니다.
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <h2>목차</h2>
+        <ol>
+          <li><a href="#slide-1">표지</a></li>
+          <li><a href="#slide-2">목차</a></li>
+          <li><a href="#slide-3">프로젝트 개요</a></li>
+          <li><a href="#slide-4">전체 시스템 구조</a></li>
+          <li><a href="#slide-5">서버 컴포넌트 구조</a></li>
+          <li><a href="#slide-5-1">컴포넌트 통신 흐름도</a></li>
+          <li><a href="#slide-6">프로토콜 설계</a></li>
+          <li><a href="#slide-7">메시지 타입</a></li>
+          <li><a href="#slide-8">룸 상태 머신</a></li>
+          <li><a href="#slide-9">게임 로직 ① 이동 &amp; 배터리</a></li>
+          <li><a href="#slide-10">게임 로직 ② 함정 &amp; SlowShot</a></li>
+          <li><a href="#slide-11">Input Frame 처리 흐름</a></li>
+          <li><a href="#slide-12">DB 스키마</a></li>
+          <li><a href="#slide-13">MySQL 저장 흐름</a></li>
+          <li><a href="#slide-14">Unity 클라이언트 구조</a></li>
+          <li><a href="#slide-15">정리 &amp; 데모 동선</a></li>
+        </ol>
+      </aside>
+
+      <main class="slides">
+        <section class="slide" id="slide-1">
+          <div class="slide-header">
+            <h2>슬라이드 1 — 표지 (Battery Rush Arena)</h2>
+            <span class="time">약 20초</span>
+          </div>
+          <p>안녕하세요. 게임 네트워크 기초 중간 프로젝트 발표를 맡은 [이름]입니다. 제가 이번에 구현한 프로젝트는 실시간 2인 배틀 게임인 <strong>Battery Rush Arena</strong> 입니다.</p>
+          <p>Unity 6000.3.10f1 클라이언트와 C# .NET 10 기반의 서버, 그리고 MySQL 8.x 버전을 연동하여 구축했습니다. 특히 <strong>모든 게임 로직을 서버에서 판정하는 권위 서버 아키텍처</strong>를 채택하고, 경기 결과를 데이터베이스에 안전하게 저장하도록 설계했습니다.</p>
+        </section>
+
+        <section class="slide" id="slide-2">
+          <div class="slide-header">
+            <h2>슬라이드 2 — 목차</h2>
+            <span class="time">약 25초</span>
+          </div>
+          <p>오늘 발표는 총 10개 섹션으로 구성했습니다. 프로젝트 개요와 시스템 구조를 시작으로, 서버 컴포넌트와 프로토콜 설계를 살펴본 뒤, 실제 게임 로직인 이동, 배터리, 함정 시스템에 대해 설명하겠습니다.</p>
+          <p>마지막으로 MySQL을 활용한 DB 스키마와 저장 흐름, 그리고 Unity 클라이언트 구조를 정리하며 데모 시연으로 마무리하겠습니다.</p>
+        </section>
+
+        <section class="slide" id="slide-3">
+          <div class="slide-header">
+            <h2>슬라이드 3 — 프로젝트 개요</h2>
+            <span class="time">약 50초</span>
+          </div>
+          <p>이번 프로젝트의 핵심은 <strong>권위 서버(Authoritative Server)</strong> 방식입니다. Unity 클라이언트는 오직 사용자의 입력만 서버로 보내고, 서버에서 계산된 결과 화면을 렌더링하는 역할만 수행합니다. <strong>모든 판정은 서버에서 일어납니다.</strong></p>
+          <p>서버는 TCP <strong>포트 7777</strong>을 사용하며, <strong>bra-spike-v1</strong> 이라는 전용 프로토콜 버전을 통해 통신합니다. 매치 시간은 <strong>120초</strong>로 설정되어 있습니다.</p>
+          <p>기술 스택으로는 렌더링을 담당하는 Unity, 로직과 DB 관리를 담당하는 .NET 서버, 그리고 전적 저장을 위한 MySQL 8.x를 사용했습니다.</p>
+        </section>
+
+        <section class="slide" id="slide-4">
+          <div class="slide-header">
+            <h2>슬라이드 4 — 전체 시스템 구조</h2>
+            <span class="time">약 60초</span>
+          </div>
+          <p>전체적인 데이터 흐름을 살펴보겠습니다. 클라이언트가 <strong>입력 프레임을 전송</strong>하면, C# 서버가 이를 받아 게임 상태를 갱신하고 다시 클라이언트로 브로드캐스트합니다. 경기가 종료되면 서버는 MySQL에 데이터를 <strong>INSERT 또는 UPSERT</strong> 합니다.</p>
+          <p>통신의 안정성을 위해 <strong>7777번 포트</strong>를 사용하고, <strong>2초 간격으로 하트비트</strong>를 주고받습니다. 또한 <strong>30초 동안 응답이 없는</strong> 클라이언트는 연결이 끊긴 것으로 간주하는 <strong>StaleTimeout</strong> 로직을 적용했습니다.</p>
+        </section>
+
+        <section class="slide" id="slide-5">
+          <div class="slide-header">
+            <h2>슬라이드 5 — 서버 컴포넌트 구조</h2>
+            <span class="time">약 2분 30초</span>
+          </div>
+          <p>서버는 총 <strong>10개의 핵심 컴포넌트</strong>로 역할을 엄격하게 분리했습니다. 각각 어떤 일을 하는지 짚어보겠습니다.</p>
+          <ul>
+            <li><strong>Program.cs</strong>: 진입점이자 의존성 조립소입니다. 설정 객체와 서비스들을 만들고 <code>host.RunAsync()</code>로 서버를 시작합니다.</li>
+            <li><strong>SpikeServerHost</strong>: TCP 7777 포트에서 클라이언트를 수락하고, 모든 메시지 라우팅과 시간 기반 이벤트를 처리하는 서버의 핵심 엔진입니다.</li>
+            <li><strong>ClientSession</strong>: 연결 하나당 생성되는 상태 컨테이너입니다. 세션 ID, 플레이어 이름, 소속 룸, 마지막 처리 tick, 마지막 응답 시각을 보관합니다.</li>
+            <li><strong>RoomRegistry</strong>: 인메모리 룸 디렉토리입니다. 룸 코드 발급, 참가, 퇴장, 호스트 승계 등을 스레드 안전하게 관리합니다.</li>
+            <li><strong>SpikeRoom</strong>: 플레이어 위치, 점수, 배터리, 함정, 효과, 쿨다운 등 한 방의 모든 권위 상태를 담는 객체입니다.</li>
+            <li><strong>LengthPrefixedProtocol</strong>: 4바이트 길이 헤더를 붙여 TCP 메시지 경계를 명확히 하고, 쓰기 인터리빙을 막는 네트워크 I/O 창구입니다.</li>
+            <li><strong>ProtocolMessages</strong>: 클라이언트와 서버가 주고받는 통신 봉투 클래스입니다. 입력, 룸 스냅샷, 결과, 리더보드 등을 담습니다.</li>
+            <li><strong>MySqlPersistenceService</strong>: 매치 결과를 MySQL에 저장하고, 실패 시 재시도하며, 저장 후 리더보드를 읽어옵니다.</li>
+            <li><strong>SpikeServerConfig</strong>: 포트, 매치 시간, 배터리 개수, 함정 개수, 쿨타임 같은 서버 상수의 단일 출처입니다.</li>
+            <li><strong>PersistenceModels</strong>: 매치 저장 결과와 리더보드 반환에 쓰이는 DTO 묶음입니다.</li>
+          </ul>
+        </section>
+
+        <section class="slide" id="slide-5-1">
+          <div class="slide-header">
+            <h2>슬라이드 5.1 — 컴포넌트 통신 흐름도</h2>
+            <span class="time">약 70초</span>
+          </div>
+          <p>각 컴포넌트의 역할을 파악했으니, 이번엔 이들이 <strong>실시간으로 어떻게 연결되어 패킷 하나를 처리하는지</strong> 전체 흐름을 보겠습니다.</p>
+          <div class="columns">
+            <div class="mini-card">
+              <strong>의존 관계</strong>
+              <p><code>Program.cs</code>가 <code>SpikeServerHost</code>를 만들고, 그 아래에 <code>RoomRegistry</code>, <code>LengthPrefixedProtocol</code>, <code>MySqlPersistenceService</code>가 연결됩니다. 설정값은 <code>SpikeServerConfig</code>가 공통으로 제공합니다.</p>
+            </div>
+            <div class="mini-card">
+              <strong>입력 패킷 처리 5단계</strong>
+              <p>수신 → 역직렬화 → 라우팅 → 로직 적용 → 브로드캐스트 순서로 흐릅니다. 이 구조 덕분에 어느 단계에서 문제가 생겼는지 빠르게 추적할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" id="slide-6">
+          <div class="slide-header">
+            <h2>슬라이드 6 — 프로토콜 설계</h2>
+            <span class="time">약 80초</span>
+          </div>
+          <p>패킷은 <strong>4바이트 BigEndian int32 길이 헤더</strong> 뒤에 <strong>UTF-8 JSON 페이로드</strong>를 붙이는 구조입니다. BigEndian을 사용해 네트워크 바이트 순서를 명시적으로 맞췄고, JSON 본문은 compact 형식으로 전송합니다.</p>
+          <ul>
+            <li><strong>SemaphoreSlim(1,1)</strong>: 동시에 여러 메시지가 같은 스트림에 섞여 쓰이는 인터리빙 현상을 막기 위해 스트림당 쓰기를 직렬화합니다.</li>
+            <li><strong>대소문자 무감지 JSON 파싱</strong>: Unity와 서버 간 필드명 대소문자 차이로 데이터가 비는 문제를 예방합니다.</li>
+            <li><strong>WriteIndented = false</strong>: 들여쓰기와 줄바꿈을 제거해 고빈도 패킷의 크기를 줄입니다.</li>
+          </ul>
+        </section>
+
+        <section class="slide" id="slide-7">
+          <div class="slide-header">
+            <h2>슬라이드 7 — 메시지 타입</h2>
+            <span class="time">약 40초</span>
+          </div>
+          <p>클라이언트는 <strong>hello</strong>, 방 생성, 준비 상태, <strong>input_frame</strong> 등을 포함한 <strong>8가지 메시지</strong>를 보냅니다.</p>
+          <p>이에 대해 서버는 수락 여부, 룸 스냅샷, 카운트다운, 효과 변경, 결과, 리더보드 등 <strong>16가지 세분화된 메시지</strong>로 응답하며 게임 상태를 동기화합니다.</p>
+        </section>
+
+        <section class="slide" id="slide-8">
+          <div class="slide-header">
+            <h2>슬라이드 8 — 룸 상태 머신</h2>
+            <span class="time">약 65초</span>
+          </div>
+          <p>게임의 흐름은 <strong>Lobby → Countdown → Active → Ended → Saving → ResultsReady</strong> 의 6단계 상태 머신으로 제어됩니다.</p>
+          <p>두 플레이어가 모두 Ready가 되고 호스트가 시작하면 <strong>3초 Countdown</strong> 후 <strong>120초 Active 상태</strong>로 넘어갑니다. 종료 후에는 Saving 상태에서 MySQL 저장을 수행하고, 저장이 끝나면 ResultsReady로 전환합니다.</p>
+        </section>
+
+        <section class="slide" id="slide-9">
+          <div class="slide-header">
+            <h2>슬라이드 9 — 게임 로직 ① 이동 &amp; 배터리</h2>
+            <span class="time">약 45초</span>
+          </div>
+          <p>플레이어는 프레임당 <strong>0.75 유닛</strong>씩 이동하며, 경기장은 <strong>±7.25 유닛</strong> 범위를 가집니다. 스폰 위치는 (-5.1, 0)과 (5.1, 0)입니다.</p>
+          <p>배터리는 맵에 동시에 <strong>3개</strong> 유지되며, 반경 <strong>0.65 유닛</strong> 안으로 접근하면 <strong>1점</strong>을 얻습니다. 획득된 배터리는 <strong>3초 후</strong> 서버가 다시 생성합니다.</p>
+        </section>
+
+        <section class="slide" id="slide-10">
+          <div class="slide-header">
+            <h2>슬라이드 10 — 게임 로직 ② 함정 &amp; SlowShot</h2>
+            <span class="time">약 45초</span>
+          </div>
+          <p>맵에는 <strong>4개의 함정</strong>이 있고, 반경 <strong>0.65 유닛</strong> 안에 들어오면 <strong>0.75초 동안 이동 속도가 70%</strong>로 감소합니다.</p>
+          <p><strong>SlowShot</strong>은 사거리 <strong>3.5 유닛</strong>, 내적값 <strong>0.25 이상</strong>일 때 적중 판정이 나며, 맞은 상대는 <strong>1.25초 동안 이동 속도가 65%</strong>로 감소합니다. 쿨타임은 <strong>4초</strong>이고 서버가 권위적으로 관리합니다.</p>
+        </section>
+
+        <section class="slide" id="slide-11">
+          <div class="slide-header">
+            <h2>슬라이드 11 — Input Frame 처리 흐름</h2>
+            <span class="time">약 65초</span>
+          </div>
+          <p>Unity 클라이언트가 키 입력을 감지하면 이동값과 SlowShot 여부를 담아 <strong>SendInputFrameAsync</strong> 를 호출합니다. 이 패킷은 LengthPrefixed Protocol로 서버에 전달됩니다.</p>
+          <p>서버는 플레이어의 <strong>마지막 처리 tick</strong>과 비교해 중복되거나 오래된 프레임을 거부합니다. 유효한 입력이면 위치, 배터리, 함정, 효과를 갱신하고, 갱신된 전체 상태를 다시 모든 클라이언트에 브로드캐스트합니다.</p>
+        </section>
+
+        <section class="slide" id="slide-12">
+          <div class="slide-header">
+            <h2>슬라이드 12 — DB 스키마</h2>
+            <span class="time">약 90초</span>
+          </div>
+          <p>전적 저장용 데이터베이스는 <strong>match_results</strong> 와 <strong>player_stats</strong> 두 테이블로 구성됩니다. 데이터베이스는 <strong>utf8mb4</strong> 문자셋을 사용해 한국어와 모든 유니코드 문자를 안전하게 저장합니다.</p>
+          <ul>
+            <li><strong>match_results</strong>: 매치 ID, 종료 시각, 종료 사유, 승자, 플레이어 점수, 원본 JSON payload를 저장합니다.</li>
+            <li><strong>player_stats</strong>: 플레이어별 승·무·패, 최고 점수, 총 경기 수, 마지막 플레이 시각을 누적 관리합니다.</li>
+          </ul>
+          <div class="callout">
+            두 테이블 쓰기는 하나의 트랜잭션으로 묶입니다. 그래서 매치 기록만 저장되고 통계는 빠지는 식의 불일치를 막을 수 있습니다.
+          </div>
+        </section>
+
+        <section class="slide" id="slide-13">
+          <div class="slide-header">
+            <h2>슬라이드 13 — MySQL 저장 흐름</h2>
+            <span class="time">약 65초</span>
+          </div>
+          <p>저장 프로세스는 7단계로 진행됩니다. 매치 종료 → 결과 payload 생성 → Saving 상태 전환 → 트랜잭션 시작 → 성공 시 COMMIT 또는 실패 시 재시도 → 상위 10명 리더보드 조회 → ResultsReady 상태 전환 순서입니다.</p>
+          <p>특히 저장 실패 시에는 <strong>최대 3회 재시도</strong>를 적용해 발표 상황에서도 안정적으로 결과를 남기도록 설계했습니다.</p>
+        </section>
+
+        <section class="slide" id="slide-14">
+          <div class="slide-header">
+            <h2>슬라이드 14 — Unity 클라이언트 구조</h2>
+            <span class="time">약 45초</span>
+          </div>
+          <p>클라이언트는 <strong>NetworkSpikeBootstrap → NetworkSpikeApp → NetworkSpikeClient → NetworkSpikeProtocol</strong> 의 4개 계층으로 분리되어 있습니다.</p>
+          <p><strong>NetworkSpikeClient</strong> 는 실제 TCP 연결과 ReadLoop, HeartbeatLoop를 담당하고, 서버 메시지는 <strong>SynchronizationContext</strong> 를 통해 메인 스레드로 안전하게 전달됩니다.</p>
+        </section>
+
+        <section class="slide" id="slide-15">
+          <div class="slide-header">
+            <h2>슬라이드 15 — 정리 &amp; 데모 동선</h2>
+            <span class="time">약 30초</span>
+          </div>
+          <p>정리하자면, 이번 프로젝트는 <strong>권위 서버 구조</strong>로 로직의 보안성과 일관성을 높였고, <strong>TCP + Length-Prefix JSON</strong> 으로 안정적인 통신을 구성했습니다. 여기에 <strong>6단계 룸 상태 머신</strong>과 <strong>MySQL 트랜잭션 3회 재시도</strong>를 더해 저장 흐름의 안정성도 확보했습니다.</p>
+          <p>이제 실제 데모에서는 서버 실행 후 두 클라이언트가 접속하고, 배터리를 획득하며 SlowShot을 사용하는 장면을 보여준 뒤, 종료 후 <code>match_results</code> 와 <code>player_stats</code> 에 데이터가 정상 저장되는 것을 확인하겠습니다. <strong>이상으로 발표를 마치겠습니다. 감사합니다.</strong></p>
+        </section>
+      </main>
+    </div>
+
+    <p class="footer-note">이 문서는 발표 리허설과 빠른 검토를 위해 반응형 읽기용 페이지로 정리한 버전입니다.</p>
+  </div>
+</body>
+</html>
