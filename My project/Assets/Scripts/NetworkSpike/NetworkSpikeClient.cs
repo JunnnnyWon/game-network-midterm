@@ -135,8 +135,11 @@ namespace BatteryRushArena.NetworkSpike
             _sessionEstablished = true;
             _connectedPlayerName = string.IsNullOrWhiteSpace(helloResponse.Detail) ? playerName : helloResponse.Detail;
             _readerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _readerTask = Task.Run(() => ReadLoopAsync(_readerCts.Token), _readerCts.Token);
-            _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(_readerCts.Token), _readerCts.Token);
+            var connectionCts = _readerCts;
+            var connectionClient = _tcpClient;
+            var connectionStream = _stream;
+            _readerTask = Task.Run(() => ReadLoopAsync(connectionCts, connectionClient, connectionStream, connectionCts.Token), connectionCts.Token);
+            _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(connectionCts.Token), connectionCts.Token);
             LogEmitted?.Invoke($"Connected to {_config.Host}:{_config.Port}, handshake sent.");
         }
 
@@ -264,9 +267,9 @@ namespace BatteryRushArena.NetworkSpike
             }
         }
 
-        private async Task ReadLoopAsync(CancellationToken cancellationToken)
+        private async Task ReadLoopAsync(CancellationTokenSource ownerCts, TcpClient ownerClient, NetworkStream ownerStream, CancellationToken cancellationToken)
         {
-            if (_stream == null)
+            if (ownerStream == null)
             {
                 return;
             }
@@ -275,7 +278,7 @@ namespace BatteryRushArena.NetworkSpike
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var message = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(_stream, cancellationToken);
+                    var message = await LengthPrefixedProtocol.ReadAsync<SpikeServerMessage>(ownerStream, cancellationToken);
                     if (message == null)
                     {
                         break;
@@ -304,8 +307,20 @@ namespace BatteryRushArena.NetworkSpike
             }
             finally
             {
-                ResetConnectionState();
+                ResetConnectionStateIfCurrent(ownerCts, ownerClient, ownerStream);
             }
+        }
+
+        private void ResetConnectionStateIfCurrent(CancellationTokenSource ownerCts, TcpClient ownerClient, NetworkStream ownerStream)
+        {
+            if (!ReferenceEquals(_readerCts, ownerCts) ||
+                !ReferenceEquals(_tcpClient, ownerClient) ||
+                !ReferenceEquals(_stream, ownerStream))
+            {
+                return;
+            }
+
+            ResetConnectionState();
         }
 
         private void DispatchToMainThread(Action action)
