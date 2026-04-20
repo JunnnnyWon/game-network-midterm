@@ -388,6 +388,7 @@ namespace BatteryRushArena.NetworkSpike
             {
                 _lastServerMessage = BuildLobbyBaselineMessage(message);
                 _roomCode = string.Empty;
+                _readyRequested = false;
                 _pendingReturnToLobbyCompletion?.TrySetResult(message);
                 RefreshPresentationSnapshot(_lastServerMessage);
                 SyncScenePresentation();
@@ -1754,10 +1755,9 @@ namespace BatteryRushArena.NetworkSpike
                 using var cancellationRegistration = timeoutCts.Token.Register(() => pendingCompletion.TrySetCanceled(timeoutCts.Token));
 
                 await _client.LeaveRoomAsync(GetLifetimeToken());
-                SpikeServerMessage leaveResponse;
                 try
                 {
-                    leaveResponse = await pendingCompletion.Task;
+                    await pendingCompletion.Task;
                 }
                 catch (OperationCanceledException) when (GetLifetimeToken().IsCancellationRequested)
                 {
@@ -1768,7 +1768,6 @@ namespace BatteryRushArena.NetworkSpike
                     throw new TimeoutException($"Timed out waiting for return-to-lobby acknowledgement after {ReturnToLobbyAckTimeoutSeconds:0.#}s.");
                 }
 
-                ResetTransientSessionView(BuildLobbyBaselineMessage(leaveResponse));
                 AppendLog("Returned to lobby.");
             }
             catch (Exception ex)
